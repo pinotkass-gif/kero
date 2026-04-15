@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KERO CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080B0D;--bg2:#0F1215;--bg3:#1E2830;--bg4:#263040;--border:#1E2830;--border2:#2A3A44;--text:#C8D8DC;--text2:#4A5A62;--text3:#2A3A44;--accent:#5BB8C8;--accent2:#2A7A8A;--accent3:#7DCFDD;--red:#E05555;--amber:#D4922A;--green:#3DAA72;--blue:#4488CC;--purple:#9966EE;--font-d:'Syne',sans-serif;--font-b:'DM Sans',sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:15px;overflow:hidden}
+
+/* LOGIN */
+#login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000}
+.login-box{width:380px;padding:3rem 2.5rem;border:1px solid var(--border2);background:var(--bg2)}
+.login-logo{font-family:var(--font-d);font-size:38px;font-weight:800;color:var(--accent);letter-spacing:-1.5px;margin-bottom:4px}
+.login-sub{color:var(--text2);font-size:13px;margin-bottom:2.5rem}
+.login-box label{display:block;font-size:12px;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.8px}
+.login-box input{width:100%;padding:0 14px;height:48px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-b);font-size:15px;margin-bottom:1.25rem;outline:none}
+.login-box input:focus{border-color:var(--accent)}
+.login-btn{width:100%;height:48px;background:var(--accent);color:var(--bg);font-family:var(--font-d);font-weight:700;font-size:14px;border:none;cursor:pointer;text-transform:uppercase;letter-spacing:1.5px}
+.login-btn:hover{background:var(--accent3)}
+.login-error{color:var(--red);font-size:13px;margin-top:0.75rem;display:none}
+
+/* APP */
+#app{display:none;height:100vh;flex-direction:column}
+.topbar{height:56px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 1.5rem;gap:2rem;flex-shrink:0}
+.topbar-logo{font-family:var(--font-d);font-size:22px;font-weight:800;color:var(--accent);letter-spacing:-1px;flex-shrink:0}
+.topbar-nav{display:flex;gap:0;flex:1}
+.nav-btn{height:56px;padding:0 18px;font-family:var(--font-b);font-size:14px;color:var(--text2);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;display:flex;align-items:center;gap:7px}
+.nav-btn:hover{color:var(--text)}
+.nav-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.nav-badge{background:var(--red);color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:100px;display:none}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.user-chip{font-size:13px;color:var(--text2)}
+.logout-btn{font-size:13px;color:var(--text2);background:none;border:1px solid var(--border);cursor:pointer;padding:0 14px;height:36px}
+.logout-btn:hover{color:var(--text)}
+.main-content{flex:1;overflow:hidden;display:flex}
+.view{display:none;width:100%;height:100%}
+.view.active{display:flex}
+
+/* DASHBOARD */
+.dash-view{flex-direction:column;overflow-y:auto;padding:2rem 2.5rem;gap:0}
+.dash-toprow{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.75rem}
+.dash-title{font-family:var(--font-d);font-size:22px;font-weight:700;color:var(--text)}
+.dash-date{font-size:13px;color:var(--text2);margin-top:3px}
+.period-toggle{display:flex;gap:2px}
+.period-btn{padding:0 14px;height:36px;font-size:13px;background:transparent;border:1px solid var(--border);color:var(--text2);cursor:pointer;font-family:var(--font-b)}
+.period-btn.active{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.section-label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem;margin-top:1.75rem}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi-card{background:var(--bg2);border:1px solid var(--border);padding:1.5rem 1.5rem 1.25rem}
+.kpi-val{font-family:var(--font-d);font-size:36px;font-weight:700;line-height:1;margin-bottom:8px}
+.kpi-val.ca{color:var(--accent)}.kpi-val.cg{color:var(--green)}.kpi-val.cam{color:var(--amber)}.kpi-val.cr{color:var(--red)}
+.kpi-lbl{font-size:14px;color:var(--text)}.kpi-sub{font-size:12px;color:var(--text2);margin-top:3px}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:1.75rem}
+.chart-card{background:var(--bg2);border:1px solid var(--border);padding:1.5rem}
+.chart-title{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1.25rem}
+.bar-chart{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:flex;align-items:center;gap:10px}
+.bar-label{font-size:12px;color:var(--text2);width:120px;flex-shrink:0;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:5px;background:var(--bg3)}
+.bar-fill{height:100%;background:var(--accent);transition:width 0.7s ease}
+.bar-val{font-size:13px;color:var(--text);width:36px;flex-shrink:0;text-align:right}
+.act-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.act-item:last-child{border-bottom:none}
+.act-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.act-text{flex:1;font-size:13px;color:var(--text2)}.act-text strong{color:var(--text);font-weight:500}
+.act-time{font-size:12px;color:var(--text3)}
+
+/* FUNNELS */
+.funnels-view{flex-direction:column;overflow:hidden}
+.funnels-header{padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;gap:1rem;flex-shrink:0}
+.funnel-tab{padding:6px 16px;height:36px;font-size:13px;background:transparent;border:1px solid var(--border);color:var(--text2);cursor:pointer;font-family:var(--font-b)}
+.funnel-tab.active{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.kanban-wrap{flex:1;overflow-x:auto;overflow-y:hidden;padding:1.5rem}
+.kanban-board{display:flex;gap:14px;height:100%;min-width:max-content}
+.kanban-col{width:260px;display:flex;flex-direction:column;flex-shrink:0}
+.kanban-col-header{padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.col-title{font-size:13px;font-weight:600;color:var(--text)}
+.col-count{font-size:12px;color:var(--text2);background:var(--bg3);padding:1px 8px;border-radius:100px}
+.kanban-cards{display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1;padding-bottom:1rem}
+.kanban-card{background:var(--bg2);border:1px solid var(--border);padding:12px 14px;cursor:pointer;transition:border-color 0.15s}
+.kanban-card:hover{border-color:var(--border2)}
+.kanban-card.drag-over{border-color:var(--accent)}
+.card-name{font-size:14px;font-weight:500;color:var(--text);margin-bottom:4px}
+.card-phone{font-size:12px;color:var(--text2);margin-bottom:8px}
+.card-tags{display:flex;gap:6px;flex-wrap:wrap}
+.card-time{font-size:11px;color:var(--text3);margin-top:6px}
+.card-amount{font-size:13px;font-weight:500;color:var(--accent);margin-top:4px}
+.empty-col{padding:1.5rem 1rem;text-align:center;color:var(--text3);font-size:13px;border:1px dashed var(--border);margin-top:4px}
+
+/* CHATS */
+.chats-view{flex-direction:row;overflow:hidden}
+.contacts-sidebar{width:300px;border-right:1px solid var(--border);background:var(--bg2);display:flex;flex-direction:column;flex-shrink:0}
+.sidebar-search{padding:10px 14px;border-bottom:1px solid var(--border)}
+.sidebar-search input{width:100%;height:40px;padding:0 12px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-b);font-size:14px;outline:none}
+.sidebar-search input:focus{border-color:var(--accent)}
+.contacts-list{overflow-y:auto;flex:1}
+.contact-row{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:10px}
+.contact-row:hover{background:var(--bg3)}
+.contact-row.selected{background:var(--bg3);border-left:3px solid var(--accent)}
+.contact-row.has-alert{border-left:3px solid var(--red)}
+.cr-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;flex-shrink:0}
+.cr-info{flex:1;min-width:0}
+.cr-name{font-size:14px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cr-last{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.cr-time{font-size:11px;color:var(--text3);flex-shrink:0}
+.cr-badges{display:flex;gap:4px;margin-top:4px}
+
+/* CHAT PANEL */
+.chat-panel{flex:1;display:flex;flex-direction:column;background:var(--bg)}
+.chat-header{padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;align-items:center;justify-content:space-between;min-height:64px;flex-wrap:wrap;gap:10px}
+.chat-contact-info{display:flex;align-items:center;gap:12px}
+.chat-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+.chat-name{font-size:15px;font-weight:500;color:var(--text)}
+.chat-phone{font-size:13px;color:var(--text2)}
+.chat-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.teresa-badge{font-size:12px;padding:0 12px;height:36px;border:1px solid;text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center}
+.teresa-badge.active{color:var(--accent);border-color:var(--accent)}
+.teresa-badge.paused{color:var(--amber);border-color:var(--amber)}
+.action-btn{padding:0 16px;height:36px;font-family:var(--font-b);font-size:13px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer}
+.action-btn:hover{color:var(--text)}
+.action-btn.danger{border-color:rgba(224,85,85,0.4);color:var(--red)}
+.action-btn.danger:hover{background:rgba(224,85,85,0.08)}
+.action-btn.success{border-color:rgba(91,184,200,0.4);color:var(--accent)}
+.action-btn.success:hover{background:rgba(91,184,200,0.08)}
+.messages-area{flex:1;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:68%;padding:10px 14px;font-size:14px;line-height:1.55}
+.msg.in{background:var(--bg2);border:1px solid var(--border);align-self:flex-start}
+.msg.out{background:rgba(91,184,200,0.07);border:1px solid rgba(91,184,200,0.18);align-self:flex-end}
+.msg-meta{font-size:11px;color:var(--text3);margin-top:5px;display:flex;align-items:center;gap:6px}
+.msg.out .msg-meta{justify-content:flex-end}
+.sent-by{font-size:11px;font-weight:500}
+.sent-by.teresa{color:var(--accent)}.sent-by.human{color:var(--blue)}
+.chat-input-area{padding:14px 20px;border-top:1px solid var(--border);background:var(--bg2);display:flex;gap:10px;align-items:flex-end}
+.chat-input-area textarea{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-b);font-size:15px;padding:10px 14px;resize:none;outline:none;min-height:48px;max-height:120px}
+.chat-input-area textarea:focus{border-color:var(--accent)}
+.send-btn{height:48px;padding:0 24px;background:var(--accent);color:var(--bg);font-family:var(--font-d);font-weight:700;font-size:13px;border:none;cursor:pointer;text-transform:uppercase;letter-spacing:1px;flex-shrink:0}
+.send-btn:hover{background:var(--accent3)}
+.chat-blocked{padding:14px 20px;background:rgba(212,146,42,0.06);border-top:1px solid rgba(212,146,42,0.2);font-size:13px;color:var(--amber);text-align:center}
+.chat-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text2);font-size:15px;gap:8px}
+
+/* CONTACTOS */
+.crm-view{flex-direction:column;overflow:hidden}
+.crm-toolbar{padding:12px 20px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.crm-toolbar input,.crm-toolbar select{padding:0 14px;height:44px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-b);font-size:14px;outline:none}
+.crm-toolbar input{flex:1;min-width:180px}
+.crm-toolbar input:focus,.crm-toolbar select:focus{border-color:var(--accent)}
+.export-btn{height:44px;padding:0 18px;background:transparent;border:1px solid var(--border2);color:var(--text2);font-family:var(--font-b);font-size:13px;cursor:pointer;text-transform:uppercase}
+.export-btn:hover{color:var(--accent);border-color:var(--accent)}
+.stats-bar{padding:12px 20px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;gap:2.5rem}
+.stat-item{display:flex;flex-direction:column;gap:2px}
+.stat-val{font-family:var(--font-d);font-size:22px;font-weight:700;color:var(--text)}
+.stat-lbl{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:0.4px}
+.table-wrap{flex:1;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+thead th{padding:10px 14px;text-align:left;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;cursor:pointer;white-space:nowrap;user-select:none}
+thead th:hover{color:var(--text)}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
+
+/* PILLS */
+.pill{display:inline-block;padding:3px 10px;font-size:11px;border-radius:2px;font-weight:600;white-space:nowrap}
+.pill-active{background:rgba(61,170,114,0.12);color:var(--green)}
+.pill-pending{background:rgba(212,146,42,0.12);color:var(--amber)}
+.pill-withdrawal{background:rgba(224,85,85,0.12);color:var(--red)}
+.pill-new{background:rgba(91,184,200,0.12);color:var(--accent)}
+.pill-risk-low{background:rgba(61,170,114,0.08);color:var(--green)}
+.pill-risk-mid{background:rgba(212,146,42,0.08);color:var(--amber)}
+.pill-risk-high{background:rgba(224,85,85,0.08);color:var(--red)}
+.pill-nuevo{background:rgba(91,184,200,0.1);color:var(--accent)}
+.pill-regular{background:rgba(74,90,98,0.3);color:var(--text2)}
+.pill-vip{background:rgba(212,146,42,0.15);color:var(--amber)}
+.pill-ultravip{background:rgba(153,102,238,0.15);color:var(--purple)}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:none;align-items:center;justify-content:center;z-index:500}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);width:580px;max-height:85vh;overflow-y:auto}
+.modal-header{padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-family:var(--font-d);font-size:18px;font-weight:600;color:var(--text)}
+.modal-close{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:1.5rem}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-field.full{grid-column:1/-1}
+.form-label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px}
+.form-input,.form-select,.form-textarea{height:44px;padding:0 12px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-family:var(--font-b);font-size:14px;outline:none;width:100%}
+.form-textarea{height:auto;padding:10px 12px;min-height:72px;resize:vertical}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent)}
+.modal-footer{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+.btn-cancel{height:44px;padding:0 20px;background:transparent;border:1px solid var(--border2);color:var(--text2);font-family:var(--font-b);font-size:14px;cursor:pointer}
+.btn-save{height:44px;padding:0 24px;background:var(--accent);color:var(--bg);font-family:var(--font-d);font-weight:700;font-size:14px;border:none;cursor:pointer;text-transform:uppercase}
+.btn-save:hover{background:var(--accent3)}
+
+/* UTIL */
+.empty-state{display:flex;align-items:center;justify-content:center;height:200px;color:var(--text2);font-size:14px}
+.lp{animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2)}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--bg2);border:1px solid var(--border2);padding:12px 18px;font-size:14px;z-index:9999;transform:translateY(80px);opacity:0;transition:all 0.3s}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{border-left:3px solid var(--accent)}
+.toast.err{border-left:3px solid var(--red)}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">KERO</div>
+    <div class="login-sub">Panel de operaciones · ArgenBet</div>
+    <label>Usuario</label>
+    <input type="text" id="login-user" placeholder="usuario" autocomplete="off">
+    <label>Contraseña</label>
+    <input type="password" id="login-pass" placeholder="contraseña" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Ingresar</button>
+    <div class="login-error" id="login-error">Usuario o contraseña incorrectos</div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">KERO</div>
+    <div class="topbar-nav">
+      <button class="nav-btn active" onclick="showView('dash')" id="nav-dash">Dashboard</button>
+      <button class="nav-btn" onclick="showView('funnels')" id="nav-funnels">Funnels <span id="funnel-badge" class="nav-badge">0</span></button>
+      <button class="nav-btn" onclick="showView('chats')" id="nav-chats">Chats</button>
+      <button class="nav-btn" onclick="showView('crm')" id="nav-crm">Contactos</button>
+    </div>
+    <div class="topbar-right">
+      <span class="user-chip" id="user-chip"></span>
+      <button class="logout-btn" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+  <div class="main-content">
+
+    <!-- DASHBOARD -->
+    <div class="view dash-view active" id="view-dash">
+      <div class="dash-toprow">
+        <div><div class="dash-title">Dashboard</div><div class="dash-date" id="dash-date"></div></div>
+        <div class="period-toggle">
+          <button class="period-btn active" id="pb-hoy" onclick="setPeriod('hoy')">Hoy</button>
+          <button class="period-btn" id="pb-mes" onclick="setPeriod('mes')">Este mes</button>
+          <button class="period-btn" id="pb-total" onclick="setPeriod('total')">Total</button>
+        </div>
+      </div>
+      <div class="section-label" style="margin-top:0">Actividad del período</div>
+      <div class="kpi-grid" id="kpi-periodo">
+        <div class="kpi-card"><div class="kpi-val ca lp">—</div><div class="kpi-lbl">Conversaciones</div><div class="kpi-sub">en el período</div></div>
+        <div class="kpi-card"><div class="kpi-val lp">—</div><div class="kpi-lbl">Clientes nuevos</div><div class="kpi-sub">primer contacto</div></div>
+        <div class="kpi-card"><div class="kpi-val cg lp">—</div><div class="kpi-lbl">Depósitos</div><div class="kpi-sub">cargas aprobadas</div></div>
+        <div class="kpi-card"><div class="kpi-val cam lp">—</div><div class="kpi-lbl">Retiros</div><div class="kpi-sub">solicitudes gestionadas</div></div>
+      </div>
+      <div class="section-label">Estado de la base</div>
+      <div class="kpi-grid" id="kpi-base">
+        <div class="kpi-card"><div class="kpi-val lp">—</div><div class="kpi-lbl">Total contactos</div></div>
+        <div class="kpi-card"><div class="kpi-val ca lp">—</div><div class="kpi-lbl">Activos</div><div class="kpi-sub">con saldo</div></div>
+        <div class="kpi-card"><div class="kpi-val cam lp">—</div><div class="kpi-lbl">Inactivos</div><div class="kpi-sub">30+ días sin actividad</div></div>
+        <div class="kpi-card"><div class="kpi-val cr lp">—</div><div class="kpi-lbl">Riesgo alto</div><div class="kpi-sub">atención manual</div></div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-title">Por tag</div><div id="chart-tags"><div class="lp" style="color:var(--text2);font-size:13px">Cargando...</div></div></div>
+        <div class="chart-card"><div class="chart-title">Alertas por tipo</div><div id="chart-alerts"><div class="lp" style="color:var(--text2);font-size:13px">Cargando...</div></div></div>
+        <div class="chart-card"><div class="chart-title">Actividad reciente</div><div id="activity-list"><div class="lp" style="color:var(--text2);font-size:13px">Cargando...</div></div></div>
+        <div class="chart-card"><div class="chart-title">Calidad de cliente</div><div id="chart-quality"><div class="lp" style="color:var(--text2);font-size:13px">Cargando...</div></div></div>
+      </div>
+    </div>
+
+    <!-- FUNNELS -->
+    <div class="view funnels-view" id="view-funnels">
+      <div class="funnels-header">
+        <span style="font-size:14px;color:var(--text2);font-weight:500">Funnel:</span>
+        <button class="funnel-tab active" id="ft-retiros" onclick="setFunnel('retiros')">Retiros pendientes</button>
+        <button class="funnel-tab" id="ft-atencion" onclick="setFunnel('atencion')">Atención personalizada</button>
+        <span style="margin-left:auto;font-size:12px;color:var(--text2)">Arrastrá las tarjetas para cambiar el estado</span>
+      </div>
+      <div class="kanban-wrap"><div class="kanban-board" id="kanban-board"></div></div>
+    </div>
+
+    <!-- CHATS -->
+    <div class="view chats-view" id="view-chats">
+      <div class="contacts-sidebar">
+        <div class="sidebar-search">
+          <input type="text" id="chat-search" placeholder="Buscar contacto..." oninput="filterChatList()">
+        </div>
+        <div class="contacts-list" id="contacts-list">
+          <div class="empty-state lp">Cargando...</div>
+        </div>
+      </div>
+      <div class="chat-panel" id="chat-panel">
+        <div class="chat-empty">
+          <div style="font-size:32px;opacity:0.3">💬</div>
+          <div>Seleccioná un contacto para ver el chat</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTACTOS -->
+    <div class="view crm-view" id="view-crm">
+      <div class="crm-toolbar">
+        <input type="text" id="crm-search" placeholder="Buscar por nombre, teléfono, username..." oninput="filterContacts()">
+        <select id="crm-tag" onchange="filterContacts()">
+          <option value="">Todos los tags</option>
+          <option value="Active">Active</option>
+          <option value="Pending payment">Pending payment</option>
+          <option value="Withdrawal requested">Withdrawal requested</option>
+          <option value="New client">New client</option>
+        </select>
+        <select id="crm-quality" onchange="filterContacts()">
+          <option value="">Todos los clientes</option>
+          <option value="ultravip">UltraVIP</option>
+          <option value="vip">VIP</option>
+          <option value="regular">Regular</option>
+          <option value="nuevo">Nuevo</option>
+        </select>
+        <select id="crm-canal" onchange="filterContacts()">
+          <option value="">Todos los canales</option>
+          <option value="WhatsApp">WhatsApp</option>
+          <option value="Telegram">Telegram</option>
+        </select>
+        <button class="export-btn" id="export-btn" onclick="exportCSV()" style="display:none">↓ CSV</button>
+      </div>
+      <div class="stats-bar" id="stats-bar"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th onclick="sortContacts('name')">Contacto</th>
+            <th>Calidad</th>
+            <th onclick="sortContacts('phone')">Teléfono</th>
+            <th onclick="sortContacts('tag')">Tag</th>
+            <th onclick="sortContacts('total_loaded')">Cargado ARS</th>
+            <th onclick="sortContacts('total_cargas')">Cargas</th>
+            <th>Prom. carga</th>
+            <th onclick="sortContacts('last_interaction')">Última act.</th>
+            <th onclick="sortContacts('risk')">Riesgo</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="crm-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="contact-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Contacto</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field"><label class="form-label">Nombre</label><input class="form-input" id="f-name"></div>
+        <div class="form-field"><label class="form-label">Teléfono</label><input class="form-input" id="f-phone" readonly style="opacity:0.4"></div>
+        <div class="form-field"><label class="form-label">Username</label><input class="form-input" id="f-username"></div>
+        <div class="form-field"><label class="form-label">Canal</label><select class="form-select" id="f-canal"><option>WhatsApp</option><option>Telegram</option></select></div>
+        <div class="form-field"><label class="form-label">Tag</label><select class="form-select" id="f-tag"><option>New client</option><option>Active</option><option>Pending payment</option><option>Withdrawal requested</option><option>Manual review</option><option>Caution</option></select></div>
+        <div class="form-field"><label class="form-label">Stage</label><select class="form-select" id="f-stage"><option>New contact</option><option>Waiting payment</option><option>Active - balance loaded</option><option>Withdrawal pending</option></select></div>
+        <div class="form-field"><label class="form-label">Total cargado ARS</label><input class="form-input" id="f-loaded" type="number"></div>
+        <div class="form-field"><label class="form-label">Riesgo</label><select class="form-select" id="f-risk"><option value="">—</option><option>Bajo</option><option>Medio</option><option>Alto</option></select></div>
+        <div class="form-field full"><label class="form-label">Notas admin</label><textarea class="form-textarea" id="f-notas"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveContact()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB='https://hvvigvhiizuzxxkagdmr.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2dmlndmhpaXp1enh4a2FnZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzE2MTQsImV4cCI6MjA5MTQwNzYxNH0.8SDsHZO4smgw5hghXiLbxrGY3TlzaJErjM_VnM15OHs';
+const EV_URL='https://evolution-api-production-fe06.up.railway.app';
+const EV_KEY='argenbet2024secretkey';
+const EV_INST='argenbet-bot';
+
+const USERS={
+  'kero':{pass:'Koko3482.',role:'admin',display:'Kero'},
+  'rocio':{pass:'Rocio2026',role:'agent',display:'Rocío'},
+  'jazmin':{pass:'Jazmin2026',role:'agent',display:'Jazmín'},
+  'solci':{pass:'Solci2026',role:'agent',display:'Solci'},
+};
+
+// Calidad de cliente
+function clientQuality(c){
+  const cargas=c.total_cargas||0;
+  const historico=c.total_loaded||0;
+  const prom=cargas>0?historico/cargas:0;
+  if(cargas>=5&&(prom>=30000||historico>=100000)) return 'ultravip';
+  if(cargas>=3&&(prom>=15000||historico>=50000)) return 'vip';
+  if(cargas>0) return 'regular';
+  return 'nuevo';
+}
+const qualityLabel={ultravip:'UltraVIP',vip:'VIP',regular:'Regular',nuevo:'Nuevo'};
+const qualityPill={ultravip:'pill-ultravip',vip:'pill-vip',regular:'pill-regular',nuevo:'pill-nuevo'};
+
+let currentUser=null,contacts=[],filteredContacts=[],allConvs=[];
+let sortKey='last_interaction',sortDir=-1;
+let selectedContactId=null,selectedConv=null;
+let pollInterval=null,msgPollInterval=null,currentPeriod='hoy',currentFunnel='retiros';
+
+function doLogin(){
+  const u=document.getElementById('login-user').value.trim().toLowerCase();
+  const p=document.getElementById('login-pass').value;
+  const err=document.getElementById('login-error');
+  if(USERS[u]&&USERS[u].pass===p){
+    currentUser={username:u,...USERS[u]};
+    err.style.display='none';
+    try{ sessionStorage.setItem('kero_u',u); sessionStorage.setItem('kero_view','chats'); }catch(e){}
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('user-chip').textContent=currentUser.display;
+    const expBtn=document.getElementById('export-btn');
+    if(expBtn) expBtn.style.display=currentUser.role==='admin'?'':'none';
+    init();
+  } else { err.style.display='block'; }
+}
+function doLogout(){
+  clearInterval(pollInterval);clearInterval(msgPollInterval);
+  currentUser=null;
+  try{ sessionStorage.removeItem('kero_u'); sessionStorage.removeItem('kero_view'); }catch(e){}
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+}
+
+function init(){
+  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  loadAll();
+  pollInterval=setInterval(loadAll,20000);
+}
+
+window.addEventListener('load',function(){
+  try{
+    const u=sessionStorage.getItem('kero_u');
+    if(u&&USERS[u]&&!currentUser){
+      currentUser={username:u,...USERS[u]};
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('app').style.display='flex';
+      document.getElementById('user-chip').textContent=currentUser.display;
+      const expBtn=document.getElementById('export-btn');
+      if(expBtn) expBtn.style.display=currentUser.role==='admin'?'':'none';
+      init();
+      const v=sessionStorage.getItem('kero_view')||'chats';
+      setTimeout(()=>showView(v),600);
+    }
+  }catch(e){ try{sessionStorage.removeItem('kero_u');}catch(e2){} }
+});
+
+async function loadAll(){
+  let [c,cv]=await Promise.all([
+    supa('contacts?select=*&order=last_interaction.desc.nullslast'),
+    supa('conversations?select=*')
+  ]);
+  // Fallback: if ordered query failed (null returned), try without ordering
+  if(!c) c=await supa('contacts?select=*');
+  if(!cv) cv=await supa('conversations?select=*');
+  if(c){contacts=c;}
+  if(cv){allConvs=cv;}
+  const pending=(allConvs||[]).filter(x=>x.escalation_status==='pending');
+  const badge=document.getElementById('funnel-badge');
+  badge.textContent=pending.length;
+  badge.style.display=pending.length>0?'':'none';
+  // refresh current view
+  const active=document.querySelector('.view.active');
+  if(active?.id==='view-dash') renderDashboard();
+  else if(active?.id==='view-funnels') renderKanban();
+  else if(active?.id==='view-chats'){filterChatList();}
+  else if(active?.id==='view-crm'){filterContacts();renderStats();}
+}
+
+async function supa(path,opts={}){
+  try{
+    const res=await fetch(SB+'/rest/v1/'+path,{
+      headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':opts.prefer||'return=representation',...(opts.headers||{})},
+      method:opts.method||'GET',body:opts.body?JSON.stringify(opts.body):undefined
+    });
+    if(!res.ok) return null;
+    const ct=res.headers.get('content-type')||'';
+    if(ct.includes('json')&&res.status!==204) return res.json();
+    return [];
+  }catch(e){return null;}
+}
+
+// ── DASHBOARD ──
+function setPeriod(p){
+  currentPeriod=p;
+  ['hoy','mes','total'].forEach(x=>document.getElementById('pb-'+x).classList.toggle('active',x===p));
+  renderDashboard();
+}
+
+function renderDashboard(){
+  const now=new Date();
+  const todayStart=new Date(now.getFullYear(),now.getMonth(),now.getDate()).toISOString();
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1).toISOString();
+  const filterStart=currentPeriod==='hoy'?todayStart:currentPeriod==='mes'?monthStart:null;
+  const inPeriod=d=>!filterStart||!!(d&&new Date(d)>=new Date(filterStart));
+
+  const convsPeriod=allConvs.filter(c=>inPeriod(c.created_at));
+  const newClients=contacts.filter(c=>inPeriod(c.created_at));
+  const deposits=contacts.filter(c=>inPeriod(c.ultima_carga)&&(c.total_cargas||0)>0);
+  const withdrawals=allConvs.filter(c=>inPeriod(c.escalation_at)&&c.escalation_reason==='withdrawal');
+
+  document.getElementById('kpi-periodo').innerHTML=`
+    <div class="kpi-card"><div class="kpi-val ca">${convsPeriod.length}</div><div class="kpi-lbl">Conversaciones</div><div class="kpi-sub">en el período</div></div>
+    <div class="kpi-card"><div class="kpi-val">${newClients.length}</div><div class="kpi-lbl">Clientes nuevos</div><div class="kpi-sub">primer contacto</div></div>
+    <div class="kpi-card"><div class="kpi-val cg">${deposits.length}</div><div class="kpi-lbl">Depósitos</div><div class="kpi-sub">cargas aprobadas</div></div>
+    <div class="kpi-card"><div class="kpi-val cam">${withdrawals.length}</div><div class="kpi-lbl">Retiros</div><div class="kpi-sub">solicitudes gestionadas</div></div>
+  `;
+
+  const total=contacts.length;
+  const active=contacts.filter(c=>c.is_active).length;
+  const inactive=contacts.filter(c=>!c.last_interaction||(Date.now()-new Date(c.last_interaction))>30*24*3600*1000).length;
+  const highRisk=contacts.filter(c=>c.risk==='Alto').length;
+
+  document.getElementById('kpi-base').innerHTML=`
+    <div class="kpi-card"><div class="kpi-val">${total}</div><div class="kpi-lbl">Total contactos</div></div>
+    <div class="kpi-card"><div class="kpi-val ca">${active}</div><div class="kpi-lbl">Activos</div><div class="kpi-sub">con saldo cargado</div></div>
+    <div class="kpi-card"><div class="kpi-val cam">${inactive}</div><div class="kpi-lbl">Inactivos</div><div class="kpi-sub">30+ días sin actividad</div></div>
+    <div class="kpi-card"><div class="kpi-val cr">${highRisk}</div><div class="kpi-lbl">Riesgo alto</div><div class="kpi-sub">requieren atención</div></div>
+  `;
+
+  const tagCounts={};
+  contacts.forEach(c=>{if(c.tag) tagCounts[c.tag]=(tagCounts[c.tag]||0)+1;});
+  const maxTag=Math.max(...Object.values(tagCounts),1);
+  const tagColors={'Active':'var(--green)','New client':'var(--accent)','Pending payment':'var(--amber)','Withdrawal requested':'var(--red)'};
+  document.getElementById('chart-tags').innerHTML=`<div class="bar-chart">${
+    Object.entries(tagCounts).sort((a,b)=>b[1]-a[1]).map(([t,n])=>
+      `<div class="bar-row"><div class="bar-label">${t}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxTag*100)}%;background:${tagColors[t]||'var(--accent)'}"></div></div><div class="bar-val">${n}</div></div>`
+    ).join('')||'<div style="color:var(--text2);font-size:13px">Sin datos</div>'
+  }</div>`;
+
+  const escTypes={human_requested:0,withdrawal:0,vip_funnel:0};
+  allConvs.filter(c=>inPeriod(c.escalation_at)).forEach(c=>{if(c.escalation_reason) escTypes[c.escalation_reason]++;});
+  const escLabels={human_requested:'Pidió humano',withdrawal:'Retiro',vip_funnel:'VIP funnel'};
+  const escColors={human_requested:'var(--red)',withdrawal:'var(--amber)',vip_funnel:'var(--blue)'};
+  const maxEsc=Math.max(...Object.values(escTypes),1);
+  document.getElementById('chart-alerts').innerHTML=`<div class="bar-chart">${
+    Object.entries(escTypes).map(([k,n])=>
+      `<div class="bar-row"><div class="bar-label">${escLabels[k]}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxEsc*100)}%;background:${escColors[k]}"></div></div><div class="bar-val">${n}</div></div>`
+    ).join('')
+  }</div>`;
+
+  const recent=contacts.filter(c=>c.last_interaction).slice(0,6);
+  const actColors={'Active':'var(--green)','New client':'var(--accent)','Withdrawal requested':'var(--red)','Pending payment':'var(--amber)'};
+  document.getElementById('activity-list').innerHTML=recent.length?recent.map(c=>{
+    const mins=Math.round((Date.now()-new Date(c.last_interaction))/60000);
+    const t=mins<60?`hace ${mins}m`:mins<1440?`hace ${Math.round(mins/60)}h`:`hace ${Math.round(mins/1440)}d`;
+    return`<div class="act-item"><div class="act-dot" style="background:${actColors[c.tag]||'var(--text2)'}"></div><div class="act-text"><strong>${c.name||c.phone}</strong> · ${c.tag||'sin tag'}</div><div class="act-time">${t}</div></div>`;
+  }).join(''):'<div style="color:var(--text2);font-size:13px">Sin actividad</div>';
+
+  // calidad chart
+  const qCounts={ultravip:0,vip:0,regular:0,nuevo:0};
+  contacts.forEach(c=>qCounts[clientQuality(c)]++);
+  const maxQ=Math.max(...Object.values(qCounts),1);
+  const qColors={ultravip:'var(--purple)',vip:'var(--amber)',regular:'var(--text2)',nuevo:'var(--accent)'};
+  document.getElementById('chart-quality').innerHTML=`<div class="bar-chart">${
+    Object.entries(qCounts).map(([k,n])=>
+      `<div class="bar-row"><div class="bar-label">${qualityLabel[k]}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxQ*100)}%;background:${qColors[k]}"></div></div><div class="bar-val">${n}</div></div>`
+    ).join('')
+  }</div>`;
+}
+
+// ── FUNNELS / KANBAN ──
+function setFunnel(f){
+  currentFunnel=f;
+  document.getElementById('ft-retiros').classList.toggle('active',f==='retiros');
+  document.getElementById('ft-atencion').classList.toggle('active',f==='atencion');
+  renderKanban();
+}
+
+function renderKanban(){
+  const board=document.getElementById('kanban-board');
+  let cols,filteredC;
+
+  if(currentFunnel==='retiros'){
+    cols=[
+      {key:'withdrawal_pending',label:'Retiro solicitado',color:'var(--amber)'},
+      {key:'verifying',label:'Verificando',color:'var(--blue)'},
+      {key:'processing',label:'Procesando',color:'var(--purple)'},
+      {key:'completed',label:'Completado',color:'var(--green)'},
+    ];
+    filteredC=allConvs.filter(c=>c.escalation_reason==='withdrawal');
+  } else {
+    cols=[
+      {key:'human_requested',label:'Pidió humano',color:'var(--red)'},
+      {key:'in_progress',label:'En atención',color:'var(--amber)'},
+      {key:'follow_up',label:'Seguimiento',color:'var(--blue)'},
+      {key:'resolved',label:'Resuelto',color:'var(--green)'},
+    ];
+    filteredC=allConvs.filter(c=>c.escalation_reason==='human_requested'||c.escalation_reason==='vip_funnel');
+  }
+
+  // map conversations to contacts
+  const convContacts=filteredC.map(conv=>{
+    const c=contacts.find(x=>x.id===conv.contact_id)||{};
+    return{...conv,contact:c};
+  });
+
+  board.innerHTML=cols.map(col=>{
+    const cards=convContacts.filter(cc=>{
+      if(currentFunnel==='retiros') return cc.escalation_status===col.key||(col.key==='withdrawal_pending'&&cc.escalation_status==='pending');
+      else return cc.escalation_status===col.key||(col.key==='human_requested'&&cc.escalation_status==='pending');
+    });
+    return`<div class="kanban-col" data-col="${col.key}" ondragover="event.preventDefault();event.currentTarget.classList.add('drag-over')" ondragleave="event.currentTarget.classList.remove('drag-over')" ondrop="onDrop(event,'${col.key}')">
+      <div class="kanban-col-header">
+        <span class="col-title" style="color:${col.color}">${col.label}</span>
+        <span class="col-count">${cards.length}</span>
+      </div>
+      <div class="kanban-cards">
+        ${cards.length?cards.map(cc=>kanbanCard(cc)).join(''):`<div class="empty-col">Sin contactos</div>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function kanbanCard(cc){
+  const c=cc.contact||{};
+  const q=clientQuality(c);
+  const mins=cc.escalation_at?Math.round((Date.now()-new Date(cc.escalation_at))/60000):0;
+  const t=mins<60?`hace ${mins}m`:mins<1440?`hace ${Math.round(mins/60)}h`:`hace ${Math.round(mins/1440)}d`;
+  return`<div class="kanban-card" draggable="true" data-conv-id="${cc.id}" onclick="openChatFromFunnel('${cc.id}')"
+    ondragstart="event.dataTransfer.setData('convId','${cc.id}')">
+    <div class="card-name">${c.name||c.phone||'Sin nombre'}</div>
+    <div class="card-phone">${c.phone||''}</div>
+    <div class="card-tags">
+      <span class="pill ${qualityPill[q]}">${qualityLabel[q]}</span>
+      ${c.tag?`<span class="pill pill-new" style="font-size:10px">${c.tag}</span>`:''}
+    </div>
+    ${c.total_loaded?`<div class="card-amount">$${Number(c.total_loaded).toLocaleString('es-AR')}</div>`:''}
+    <div class="card-time">${t}</div>
+  </div>`;
+}
+
+async function onDrop(event,newStatus){
+  event.currentTarget.classList.remove('drag-over');
+  const convId=event.dataTransfer.getData('convId');
+  if(!convId) return;
+  await supa(`conversations?id=eq.${convId}`,{method:'PATCH',body:{escalation_status:newStatus}});
+  showToast('Estado actualizado','ok');
+  const cv=await supa('conversations?select=*');
+  if(cv) allConvs=cv;
+  renderKanban();
+}
+
+async function openChatFromFunnel(convId){
+  showView('chats');
+  _lastMsgSig=null;
+  const data=await supa(`conversations?id=eq.${convId}&select=*,contacts(*)&limit=1`);
+  if(!data||!data.length) return;
+  selectedConv=data[0];
+  selectedContactId=data[0].contact_id;
+  renderChatPanel(selectedConv);
+  loadMessages(convId);
+  clearInterval(msgPollInterval);
+  msgPollInterval=setInterval(()=>loadMessages(convId),8000);
+}
+
+// ── CHATS ──
+function filterChatList(){
+  const q=(document.getElementById('chat-search')?.value||'').toLowerCase();
+  const list=document.getElementById('contacts-list');
+  if(!list) return;
+  const filtered=contacts.filter(c=>!q||(c.name||'').toLowerCase().includes(q)||(c.phone||'').includes(q));
+  if(!filtered.length){list.innerHTML='<div class="empty-state">Sin resultados</div>';return;}
+  // check which have active alerts
+  const alertContactIds=new Set(allConvs.filter(cv=>cv.escalation_status==='pending').map(cv=>cv.contact_id));
+  list.innerHTML=filtered.map(c=>{
+    const hasAlert=alertContactIds.has(c.id);
+    const q2=clientQuality(c);
+    const mins=c.last_interaction?Math.round((Date.now()-new Date(c.last_interaction))/60000):null;
+    const t=mins===null?'—':mins<60?`${mins}m`:mins<1440?`${Math.round(mins/60)}h`:`${Math.round(mins/1440)}d`;
+    const sel=selectedContactId===c.id?' selected':'';
+    const alertCls=hasAlert?' has-alert':'';
+    return`<div class="contact-row${sel}${alertCls}" onclick="openChatByContact('${c.id}')">
+      <div class="cr-avatar" style="background:${avatarColor(c.name||c.phone)}">${initials(c.name||c.phone)}</div>
+      <div class="cr-info">
+        <div class="cr-name">${c.name||c.phone||'Sin nombre'}</div>
+        <div class="cr-last">${c.last_message||'Sin mensajes'}</div>
+        <div class="cr-badges">
+          <span class="pill ${qualityPill[q2]}" style="font-size:10px;padding:1px 6px">${qualityLabel[q2]}</span>
+          ${hasAlert?`<span class="pill pill-withdrawal" style="font-size:10px;padding:1px 6px">Alerta</span>`:''}
+        </div>
+      </div>
+      <div class="cr-time">${t}</div>
+    </div>`;
+  }).join('');
+}
+
+async function openChatByContact(contactId){
+  selectedContactId=contactId;
+  _lastMsgSig=null;
+  filterChatList();
+  // find or create conversation — use created_at fallback if updated_at is null
+  let convData=await supa(`conversations?contact_id=eq.${contactId}&order=created_at.desc.nullslast&limit=1`);
+  let conv=convData&&convData.length?convData[0]:null;
+  if(!conv){
+    const newConv=await supa('conversations',{method:'POST',body:{contact_id:contactId,status:'open',teresa_paused:false,last_message_at:new Date().toISOString()}});
+    conv=newConv&&newConv.length?newConv[0]:null;
+  }
+  if(!conv) return;
+  // enrich with contact — always use local lookup first (more robust than PostgREST embed)
+  const localContact=contacts.find(x=>x.id===contactId)||{};
+  selectedConv={...conv,contact_id:contactId,contacts:localContact};
+  try{
+    const cData=await supa(`conversations?id=eq.${conv.id}&select=*,contacts(*)&limit=1`);
+    if(cData&&cData.length&&cData[0].contacts) selectedConv=cData[0];
+  }catch(e){}
+  renderChatPanel(selectedConv);
+  loadMessages(conv.id);
+  clearInterval(msgPollInterval);
+  msgPollInterval=setInterval(()=>loadMessages(conv.id),8000);
+}
+
+function renderChatPanel(conv){
+  const c=conv.contacts||{};
+  const paused=conv.teresa_paused;
+  const color=avatarColor(c.name||c.phone);
+  const q=clientQuality(c);
+  document.getElementById('chat-panel').innerHTML=`
+    <div class="chat-header">
+      <div class="chat-contact-info">
+        <div class="chat-avatar" style="background:${color};color:#fff">${initials(c.name||c.phone)}</div>
+        <div>
+          <div class="chat-name">${c.name||'Sin nombre'} <span class="pill ${qualityPill[q]}" style="font-size:11px;vertical-align:middle">${qualityLabel[q]}</span></div>
+          <div class="chat-phone">${c.phone||''} · ${c.canal||'WhatsApp'}</div>
+        </div>
+      </div>
+      <div class="chat-actions">
+        <span class="teresa-badge ${paused?'paused':'active'}">Teresa ${paused?'pausada':'activa'}</span>
+        ${paused?`<button class="action-btn success" onclick="toggleTeresa('${conv.id}',false)">Devolver a Teresa</button>`:`<button class="action-btn danger" onclick="toggleTeresa('${conv.id}',true)">Tomar control</button>`}
+        ${conv.escalation_status==='pending'?`<button class="action-btn" onclick="resolveAlert('${conv.id}')">Resolver alerta</button>`:''}
+        <button class="action-btn" onclick="openContactModal('${c.id}')">Ver ficha</button>
+      </div>
+    </div>
+    <div class="messages-area" id="messages-area"><div class="empty-state lp">Cargando...</div></div>
+    ${paused?`<div class="chat-input-area"><textarea id="msg-input" placeholder="Escribí tu mensaje..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage('${conv.id}','${c.phone}')}"></textarea><button class="send-btn" onclick="sendMessage('${conv.id}','${c.phone}')">Enviar</button></div>`:`<div class="chat-blocked">Teresa está manejando este chat. Hacé click en "Tomar control" para responder.</div>`}
+  `;
+}
+
+let _lastMsgSig=null;
+async function loadMessages(convId){
+  const areaEl=document.getElementById('messages-area');if(!areaEl)return;
+  if(!areaEl.querySelector('.msg')) areaEl.innerHTML='<div class="empty-state lp">Cargando...</div>';
+  let data=null;
+  // 1) Primary: by conversation_id
+  if(convId) data=await supa(`messages?conversation_id=eq.${convId}&order=timestamp.asc&limit=150`);
+  // 2) Fallback: by contact_id
+  if(!data||!data.length){
+    const cid=selectedConv?.contact_id||selectedConv?.contacts?.id||selectedContactId;
+    if(cid) data=await supa(`messages?contact_id=eq.${cid}&order=timestamp.asc&limit=150`);
+  }
+  // 3) Last resort: by phone
+  if(!data||!data.length){
+    const phone=selectedConv?.contacts?.phone;
+    if(phone){
+      const all=await supa(`contacts?phone=eq.${encodeURIComponent(phone)}&select=id`);
+      if(all&&all.length){
+        const inClause=all.map(c=>c.id).join(',');
+        data=await supa(`messages?contact_id=in.(${inClause})&order=timestamp.asc&limit=150`);
+      }
+    }
+  }
+  const area=document.getElementById('messages-area');if(!area)return;
+  if(!data||!data.length){
+    if(_lastMsgSig!=='EMPTY'){area.innerHTML='<div class="empty-state">Sin mensajes registrados</div>';_lastMsgSig='EMPTY';}
+    return;
+  }
+  // Ordenamiento robusto: en cada "burbuja" de segundos cercanos el user (in) va antes que teresa (out)
+  // - Primero por inserted_at asc (con fallback a timestamp)
+  // - Para empates / diferencias < 3s: prioridad a direction='in' sobre 'out'
+  data.sort((a,b)=>{
+    const ta=new Date(a.inserted_at||a.timestamp||0).getTime();
+    const tb=new Date(b.inserted_at||b.timestamp||0).getTime();
+    const diff=ta-tb;
+    if(Math.abs(diff)<3000){
+      // Dentro de 3 segundos, user primero
+      if(a.direction==='in'&&b.direction==='out') return -1;
+      if(a.direction==='out'&&b.direction==='in') return 1;
+    }
+    return diff;
+  });
+  // Evitar re-renders innecesarios (perf): solo repintar si cambió el set de IDs
+  const sig=data.map(m=>m.id).join('|');
+  if(sig===_lastMsgSig) return;
+  _lastMsgSig=sig;
+  area.innerHTML=data.map(m=>{
+    const dir=m.direction==='out'?'out':'in';
+    const byLabel={teresa:'Teresa',user:'Cliente',human:currentUser?.display||'Agente',system:'Sistema'}[m.sent_by]||m.sent_by||'';
+    const byClass={teresa:'teresa',human:'human'}[m.sent_by]||'';
+    const t=m.timestamp?new Date(m.timestamp).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'';
+    return`<div class="msg ${dir}">${(m.body||'').replace(/</g,'&lt;')}<div class="msg-meta"><span class="sent-by ${byClass}">${byLabel}</span>${t?' · '+t:''}</div></div>`;
+  }).join('');
+  area.scrollTop=area.scrollHeight;
+}
+
+async function sendMessage(convId,phone){
+  const input=document.getElementById('msg-input');
+  const text=input?.value?.trim();if(!text)return;
+  input.value='';
+  try{await fetch(`${EV_URL}/message/sendText/${EV_INST}`,{method:'POST',headers:{'apikey':EV_KEY,'Content-Type':'application/json'},body:JSON.stringify({number:phone,text})});}catch(e){}
+  await supa('messages',{method:'POST',body:{conversation_id:convId,contact_id:selectedConv?.contacts?.id||selectedConv?.contact_id,direction:'out',body:text,sent_by:'human',status:'sent',timestamp:new Date().toISOString()}});
+  await supa(`contacts?id=eq.${selectedConv?.contacts?.id||selectedConv?.contact_id}`,{method:'PATCH',body:{last_message:'(Agente) '+text,last_interaction:new Date().toISOString()}});
+  loadMessages(convId);
+}
+
+async function toggleTeresa(convId,pause){
+  await supa(`conversations?id=eq.${convId}`,{method:'PATCH',body:{teresa_paused:pause}});
+  showToast(pause?'Teresa pausada':'Teresa reactivada','ok');
+  const data=await supa(`conversations?id=eq.${convId}&select=*,contacts(*)&limit=1`);
+  if(data&&data.length){selectedConv=data[0];renderChatPanel(selectedConv);loadMessages(convId);}
+}
+
+async function resolveAlert(convId){
+  await supa(`conversations?id=eq.${convId}`,{method:'PATCH',body:{escalation_status:'resolved',teresa_paused:false}});
+  showToast('Alerta resuelta','ok');
+  const cv=await supa('conversations?select=*');if(cv) allConvs=cv;
+  const data=await supa(`conversations?id=eq.${convId}&select=*,contacts(*)&limit=1`);
+  if(data&&data.length){selectedConv=data[0];renderChatPanel(selectedConv);}
+  renderKanban();filterChatList();
+}
+
+// ── CONTACTOS ──
+function filterContacts(){
+  const q=(document.getElementById('crm-search')?.value||'').toLowerCase();
+  const ft=document.getElementById('crm-tag')?.value||'';
+  const fq=document.getElementById('crm-quality')?.value||'';
+  const fc=document.getElementById('crm-canal')?.value||'';
+  filteredContacts=contacts.filter(c=>{
+    const mq=!q||(c.name||'').toLowerCase().includes(q)||(c.phone||'').includes(q)||(c.username||'').toLowerCase().includes(q);
+    const mfq=!fq||clientQuality(c)===fq;
+    return mq&&(!ft||c.tag===ft)&&mfq&&(!fc||c.canal===fc);
+  });
+  sortContactsArr();renderContacts();
+}
+function sortContacts(k){if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=-1;}sortContactsArr();renderContacts();}
+function sortContactsArr(){
+  filteredContacts.sort((a,b)=>{
+    let va=a[sortKey]??'',vb=b[sortKey]??'';
+    if(typeof va==='string')va=va.toLowerCase();if(typeof vb==='string')vb=vb.toLowerCase();
+    return va<vb?-sortDir:va>vb?sortDir:0;
+  });
+}
+function renderStats(){
+  const el=document.getElementById('stats-bar');if(!el)return;
+  const total=contacts.length,active=contacts.filter(c=>c.is_active).length;
+  const totalARS=contacts.reduce((s,c)=>s+(c.total_loaded||0),0);
+  const uvip=contacts.filter(c=>clientQuality(c)==='ultravip').length;
+  const vip=contacts.filter(c=>clientQuality(c)==='vip').length;
+  el.innerHTML=`
+    <div class="stat-item"><div class="stat-val">${total}</div><div class="stat-lbl">Contactos</div></div>
+    <div class="stat-item"><div class="stat-val">${active}</div><div class="stat-lbl">Activos</div></div>
+    <div class="stat-item"><div class="stat-val">$${totalARS.toLocaleString('es-AR')}</div><div class="stat-lbl">Total cargado</div></div>
+    <div class="stat-item"><div class="stat-val" style="color:var(--purple)">${uvip}</div><div class="stat-lbl">UltraVIP</div></div>
+    <div class="stat-item"><div class="stat-val" style="color:var(--amber)">${vip}</div><div class="stat-lbl">VIP</div></div>
+  `;
+}
+
+const ACOLORS=['#5BB8C8','#4488CC','#D4922A','#E05555','#9966EE','#3DAA72'];
+function avatarColor(s){let h=0;for(const c of(s||'?'))h=(h*31+c.charCodeAt(0))%ACOLORS.length;return ACOLORS[h];}
+function initials(n){if(!n)return'?';const p=n.trim().split(' ');return(p[0][0]+(p[1]?p[1][0]:'')).toUpperCase();}
+function fmtDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});}
+function pillTag(t){if(!t)return'';const m={'Active':'pill-active','Pending payment':'pill-pending','Withdrawal requested':'pill-withdrawal','New client':'pill-new'};return`<span class="pill ${m[t]||'pill-new'}">${t}</span>`;}
+function pillRisk(r){if(!r)return'—';const m={'Bajo':'pill-risk-low','Medio':'pill-risk-mid','Alto':'pill-risk-high'};return`<span class="pill ${m[r]||''}">${r}</span>`;}
+
+function renderContacts(){
+  const tb=document.getElementById('crm-tbody');if(!tb)return;
+  renderStats();
+  if(!filteredContacts.length){tb.innerHTML=`<tr><td colspan="10" class="empty-state">Sin contactos</td></tr>`;return;}
+  tb.innerHTML=filteredContacts.map(c=>{
+    const q=clientQuality(c);
+    const prom=c.total_cargas>0?Math.round(c.total_loaded/c.total_cargas):0;
+    return`<tr onclick="openContactModal('${c.id}')">
+      <td><div style="display:flex;align-items:center;gap:10px">
+        <div style="width:30px;height:30px;border-radius:50%;background:${avatarColor(c.name||c.phone)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;flex-shrink:0">${initials(c.name||c.phone)}</div>
+        <span style="color:var(--text)">${c.name||'<span style="color:var(--text2)">Sin nombre</span>'}</span>
+      </div></td>
+      <td><span class="pill ${qualityPill[q]}">${qualityLabel[q]}</span></td>
+      <td>${c.phone||'—'}</td>
+      <td>${pillTag(c.tag)}</td>
+      <td style="color:var(--text)">${c.total_loaded?'$'+Number(c.total_loaded).toLocaleString('es-AR'):'—'}</td>
+      <td style="text-align:center">${c.total_cargas||0}</td>
+      <td style="color:var(--text2)">${prom?'$'+prom.toLocaleString('es-AR'):'—'}</td>
+      <td>${fmtDate(c.last_interaction)}</td>
+      <td>${pillRisk(c.risk)}</td>
+      <td><button class="action-btn" onclick="event.stopPropagation();openContactModal('${c.id}')">Ver</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── MODAL ──
+let editingContactId=null;
+function openContactModal(id){
+  const c=contacts.find(x=>x.id===id);if(!c)return;
+  editingContactId=id;
+  document.getElementById('modal-title').textContent=c.name||c.phone;
+  document.getElementById('f-name').value=c.name||'';
+  document.getElementById('f-phone').value=c.phone||'';
+  document.getElementById('f-username').value=c.username||'';
+  document.getElementById('f-canal').value=c.canal||'WhatsApp';
+  document.getElementById('f-tag').value=c.tag||'New client';
+  document.getElementById('f-stage').value=c.stage||'New contact';
+  document.getElementById('f-loaded').value=c.total_loaded||0;
+  document.getElementById('f-risk').value=c.risk||'';
+  document.getElementById('f-notas').value=c.notas_admin||'';
+  document.getElementById('contact-modal').classList.add('open');
+}
+function closeModal(){document.getElementById('contact-modal').classList.remove('open');}
+async function saveContact(){
+  if(!editingContactId)return;
+  const body={name:document.getElementById('f-name').value,username:document.getElementById('f-username').value,canal:document.getElementById('f-canal').value,tag:document.getElementById('f-tag').value,stage:document.getElementById('f-stage').value,total_loaded:parseFloat(document.getElementById('f-loaded').value)||0,risk:document.getElementById('f-risk').value,notas_admin:document.getElementById('f-notas').value};
+  await supa(`contacts?id=eq.${editingContactId}`,{method:'PATCH',body});
+  showToast('Contacto guardado','ok');closeModal();
+  const c=await supa('contacts?select=*&order=last_interaction.desc.nullslast');
+  if(c){contacts=c;filterContacts();filterChatList();}
+}
+
+// ── VIEWS ──
+function showView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.getElementById('nav-'+v).classList.add('active');
+  try{ sessionStorage.setItem('kero_view',v); }catch(e){}
+  if(v==='dash') renderDashboard();
+  if(v==='funnels') renderKanban();
+  if(v==='chats') filterChatList();
+  if(v==='crm'){filterContacts();renderStats();}
+}
+
+// ── EXPORT ──
+function exportCSV(){
+  if(currentUser?.role!=='admin'){showToast('Sin permisos','err');return;}
+  const headers=['id','phone','name','username','canal','tag','stage','total_loaded','total_cargas','primer_pago','risk','last_interaction','notas_admin'];
+  const rows=contacts.map(c=>headers.map(h=>JSON.stringify(c[h]??'')).join(','));
+  const csv=[headers.join(','),...rows].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`kero-contacts-${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();showToast('CSV exportado','ok');
+}
+
+function showToast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className=`toast ${type} show`;
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+</script>
+</body>
+</html>

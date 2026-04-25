@@ -733,22 +733,47 @@ async function openChatFromFunnel(convId){
   subscribeToConversation(convId);
 }
 
-// Suscripción realtime a los mensajes de UNA conversación
+// Suscripción realtime a los mensajes de UNA conversación.
+// n8n a veces inserta sin conversation_id, así que escuchamos por las dos rutas
+// (conversation_id y contact_id) y dejamos que appendMessageDOM deduplique por id.
 function subscribeToConversation(convId){
   _currentConvId=convId;
+  const cid=selectedConv?.contact_id||selectedConv?.contacts?.id||selectedContactId;
   clearInterval(msgPollInterval);
-  // Respaldo suave por si cae el WebSocket: refresca cada 30s
-  msgPollInterval=setInterval(()=>{ if(_currentConvId===convId) loadMessages(convId); },30000);
+  // Respaldo suave por si cae el WebSocket: refresca cada 15s
+  msgPollInterval=setInterval(()=>{ if(_currentConvId===convId) loadMessages(convId); },15000);
   if(!_sbClient) return;
   try{ if(_msgChannel) _sbClient.removeChannel(_msgChannel); }catch(e){}
-  _msgChannel=_sbClient.channel('kero-msgs-'+convId)
-    .on('postgres_changes',
+  const ch=_sbClient.channel('kero-msgs-'+convId);
+  // 1) Filtrado por conversation_id (cuando viene seteado)
+  ch.on('postgres_changes',
         {event:'INSERT',schema:'public',table:'messages',filter:'conversation_id=eq.'+convId},
         payload=>{ if(_currentConvId===convId && payload.new) appendMessageDOM(payload.new); })
     .on('postgres_changes',
         {event:'UPDATE',schema:'public',table:'messages',filter:'conversation_id=eq.'+convId},
-        payload=>{ if(_currentConvId===convId && payload.new) updateMessageDOM(payload.new); })
-    .subscribe();
+        payload=>{ if(_currentConvId===convId && payload.new) updateMessageDOM(payload.new); });
+  // 2) Filtrado por contact_id (cuando n8n no setea conversation_id)
+  if(cid){
+    ch.on('postgres_changes',
+          {event:'INSERT',schema:'public',table:'messages',filter:'contact_id=eq.'+cid},
+          payload=>{
+            if(_currentConvId!==convId||!payload.new) return;
+            // Evitá pintar mensajes de OTRA conversación del mismo contacto
+            const m=payload.new;
+            if(m.conversation_id && m.conversation_id!==convId) return;
+            appendMessageDOM(m);
+          })
+      .on('postgres_changes',
+          {event:'UPDATE',schema:'public',table:'messages',filter:'contact_id=eq.'+cid},
+          payload=>{
+            if(_currentConvId!==convId||!payload.new) return;
+            const m=payload.new;
+            if(m.conversation_id && m.conversation_id!==convId) return;
+            updateMessageDOM(m);
+          });
+  }
+  ch.subscribe();
+  _msgChannel=ch;
 }
 
 // ── CHATS ──

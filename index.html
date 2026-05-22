@@ -269,7 +269,6 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
         <div class="kpi-card"><div class="kpi-val ca lp">—</div><div class="kpi-lbl">Conversión</div><div class="kpi-sub">% nuevos que cargaron</div></div>
         <div class="kpi-card"><div class="kpi-val lp">—</div><div class="kpi-lbl">Tiempo a 1ra carga</div><div class="kpi-sub">días promedio</div></div>
         <div class="kpi-card"><div class="kpi-val cg lp">—</div><div class="kpi-lbl">Recurrencia</div><div class="kpi-sub">% con 2+ cargas</div></div>
-        <div class="kpi-card"><div class="kpi-val cam lp">—</div><div class="kpi-lbl">Total USD</div><div class="kpi-sub">cargado en dólar</div></div>
       </div>
       <div class="section-label">Estado de la base</div>
       <div class="kpi-grid" id="kpi-base">
@@ -806,7 +805,6 @@ function renderDashboard(){
   // Monto total cargado: aproximación = sum(total_loaded) de contactos cuya última_carga cae en el período
   // (para contactos con carga reciente, total_loaded refleja su gasto acumulado)
   const montoTotal = deposits.reduce((s,c)=>s+(parseFloat(c.total_loaded)||0),0);
-  const montoUSD   = deposits.reduce((s,c)=>s+(parseFloat(c.total_loaded_usd)||0),0);
   // Total de cargas en el período (sum de total_cargas de los depositantes)
   const cargasTotal = deposits.reduce((s,c)=>s+(parseInt(c.total_cargas)||0),0);
   // Primeras cargas en el período: contactos que tienen total_cargas==1 y ultima_carga en el período
@@ -818,7 +816,6 @@ function renderDashboard(){
   const promPrimerasDia = primerasCargas / daysInPeriod;
 
   const fmtMoney = n => n>=1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n>=1e3 ? '$'+(n/1e3).toFixed(1)+'k' : '$'+Math.round(n).toLocaleString('es-AR');
-  const fmtUSD   = n => 'U$'+Math.round(n).toLocaleString('es-AR');
   const fmtNum   = n => n>=10 ? Math.round(n) : n.toFixed(1);
 
   document.getElementById('kpi-montos').innerHTML=`
@@ -844,7 +841,6 @@ function renderDashboard(){
     <div class="kpi-card"><div class="kpi-val ca">${tasaConv.toFixed(1)}%</div><div class="kpi-lbl">Conversión</div><div class="kpi-sub">${newClientsQueCargaron}/${newClients.length} nuevos cargaron</div></div>
     <div class="kpi-card"><div class="kpi-val">${tiempoProm.toFixed(1)}d</div><div class="kpi-lbl">Tiempo a 1ra carga</div><div class="kpi-sub">${tiempos.length} muestras</div></div>
     <div class="kpi-card"><div class="kpi-val cg">${tasaRecur.toFixed(0)}%</div><div class="kpi-lbl">Recurrencia</div><div class="kpi-sub">${recurrentes}/${deposits.length} con 2+ cargas</div></div>
-    <div class="kpi-card"><div class="kpi-val cam">${fmtUSD(montoUSD)}</div><div class="kpi-lbl">Total USD</div><div class="kpi-sub">cargado en dólar</div></div>
   `;
 
   const total=contacts.length;

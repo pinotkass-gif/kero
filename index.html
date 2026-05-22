@@ -257,6 +257,20 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
         <div class="kpi-card"><div class="kpi-val cg lp">—</div><div class="kpi-lbl">Depósitos</div><div class="kpi-sub">cargas aprobadas</div></div>
         <div class="kpi-card"><div class="kpi-val cam lp">—</div><div class="kpi-lbl">Retiros</div><div class="kpi-sub">solicitudes gestionadas</div></div>
       </div>
+      <div class="section-label admin-only" style="display:none">Montos y volumen</div>
+      <div class="kpi-grid admin-only" id="kpi-montos" style="display:none">
+        <div class="kpi-card"><div class="kpi-val cg lp">—</div><div class="kpi-lbl">Monto cargado</div><div class="kpi-sub">total ARS en el período</div></div>
+        <div class="kpi-card"><div class="kpi-val ca lp">—</div><div class="kpi-lbl">Ticket promedio</div><div class="kpi-sub">ARS por carga</div></div>
+        <div class="kpi-card"><div class="kpi-val lp">—</div><div class="kpi-lbl">Cargas/día</div><div class="kpi-sub">promedio diario</div></div>
+        <div class="kpi-card"><div class="kpi-val cam lp">—</div><div class="kpi-lbl">1ras cargas/día</div><div class="kpi-sub">promedio diario</div></div>
+      </div>
+      <div class="section-label admin-only" style="display:none">Conversión y retención</div>
+      <div class="kpi-grid admin-only" id="kpi-conversion" style="display:none">
+        <div class="kpi-card"><div class="kpi-val ca lp">—</div><div class="kpi-lbl">Conversión</div><div class="kpi-sub">% nuevos que cargaron</div></div>
+        <div class="kpi-card"><div class="kpi-val lp">—</div><div class="kpi-lbl">Tiempo a 1ra carga</div><div class="kpi-sub">días promedio</div></div>
+        <div class="kpi-card"><div class="kpi-val cg lp">—</div><div class="kpi-lbl">Recurrencia</div><div class="kpi-sub">% con 2+ cargas</div></div>
+        <div class="kpi-card"><div class="kpi-val cam lp">—</div><div class="kpi-lbl">Total USD</div><div class="kpi-sub">cargado en dólar</div></div>
+      </div>
       <div class="section-label">Estado de la base</div>
       <div class="kpi-grid" id="kpi-base">
         <div class="kpi-card"><div class="kpi-val lp">—</div><div class="kpi-lbl">Total contactos</div></div>
@@ -377,6 +391,19 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
 
 <div class="toast" id="toast"></div>
 
+<!-- Botones flotantes de diagnóstico mensajes -->
+<button id="diag-btn" onclick="runMsgDiag()" style="position:fixed;bottom:18px;right:18px;z-index:9999;background:#D4922A;color:#080B0D;border:none;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0.5px;text-transform:uppercase">Diagnóstico Bot</button>
+<button id="testins-btn" onclick="runTestInsert()" style="position:fixed;bottom:18px;right:185px;z-index:9999;background:#3DAA72;color:#080B0D;border:none;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0.5px;text-transform:uppercase">Test Insert</button>
+<div id="diag-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)document.getElementById('diag-modal').style.display='none'">
+  <div style="background:#0F1215;border:1px solid #2A3A44;max-width:900px;width:100%;max-height:85vh;overflow:auto;padding:1.5rem;font-family:'DM Sans',sans-serif;color:#C8D8DC;font-size:13px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <h3 style="font-family:'Syne',sans-serif;color:#5BB8C8;margin:0">Diagnóstico tabla <code>messages</code></h3>
+      <button onclick="document.getElementById('diag-modal').style.display='none'" style="background:none;border:1px solid #2A3A44;color:#C8D8DC;padding:4px 10px;cursor:pointer">Cerrar</button>
+    </div>
+    <div id="diag-output" style="font-family:monospace;font-size:12px;line-height:1.6;white-space:pre-wrap"></div>
+  </div>
+</div>
+
 <!-- Supabase JS (Realtime) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -433,6 +460,7 @@ function doLogin(){
     document.getElementById('user-chip').textContent=currentUser.display;
     const expBtn=document.getElementById('export-btn');
     if(expBtn) expBtn.style.display=currentUser.role==='admin'?'':'none';
+    document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=currentUser.role==='admin'?'':'none';});
     init();
   } else { err.style.display='block'; }
 }
@@ -547,17 +575,192 @@ async function loadAll(){
   else if(active?.id==='view-crm'){filterContacts();renderStats();}
 }
 
+window._supaDebug={lastError:null,lastPath:null,lastStatus:null,lastBody:null};
+
+// ─── Test Insert: prueba meter una fila en messages para ver qué dice Supabase ───
+async function runTestInsert(){
+  const out=document.getElementById('diag-output');
+  const modal=document.getElementById('diag-modal');
+  modal.style.display='flex';
+  out.textContent='Probando INSERT en messages...';
+  const lines=[];
+  // Usar un contact + conversation reales (los primeros que aparezcan)
+  const cs=await fetch(SB+'/rest/v1/contacts?select=id&limit=1',{headers:{apikey:SK,Authorization:'Bearer '+SK}});
+  const cArr=await cs.json();
+  const cv=await fetch(SB+'/rest/v1/conversations?select=id,contact_id&limit=1',{headers:{apikey:SK,Authorization:'Bearer '+SK}});
+  const cvArr=await cv.json();
+  if(!cArr.length||!cvArr.length){out.textContent='No hay contacts o conversations para usar como referencia';return;}
+  const testBody={
+    contact_id:cArr[0].id,
+    conversation_id:cvArr[0].id,
+    direction:'in',
+    body:'[TEST INSERT desde CRM '+new Date().toISOString()+']',
+    sent_by:'user',
+    status:'received',
+    timestamp:new Date().toISOString()
+  };
+  lines.push('━━ PAYLOAD ENVIADO ━━');
+  lines.push(JSON.stringify(testBody,null,2));
+  lines.push('\n━━ RESPUESTA SUPABASE ━━');
+  try{
+    const r=await fetch(SB+'/rest/v1/messages',{
+      method:'POST',
+      headers:{apikey:SK,Authorization:'Bearer '+SK,'Content-Type':'application/json',Prefer:'return=representation'},
+      body:JSON.stringify(testBody)
+    });
+    const txt=await r.text();
+    lines.push('HTTP '+r.status+' '+r.statusText);
+    lines.push('Body: '+txt);
+    if(r.ok){
+      lines.push('\n✅ INSERT EXITOSO — el problema NO es Supabase, es el bot en n8n.');
+      lines.push('Causa probable: el bot manda contact_id="" o conversation_id="" (expresión vacía).');
+      lines.push('Solución: revisar las executions de n8n del workflow ApyhRhdkeX1Vt5DP, mirar la salida real del nodo "Guardar mensaje usuario Supabase".');
+    } else {
+      if(r.status===401||r.status===403){
+        lines.push('\n❌ RLS / AUTH — Supabase rechaza el INSERT con esta anon key.');
+        lines.push('Solución: en Supabase Dashboard → Authentication → Policies → tabla messages, agregar policy "Enable insert for anon" con USING(true) WITH CHECK(true).');
+      } else if(r.status===400){
+        lines.push('\n❌ Schema/Constraint — Supabase recibe los datos pero rechaza por algún check.');
+        lines.push('Mirá el "Body" arriba: dice exactamente qué columna o constraint falla.');
+      } else {
+        lines.push('\n❌ Error HTTP '+r.status+'. Mirá el Body para detalle.');
+      }
+    }
+  }catch(e){
+    lines.push('Fetch error: '+e.message);
+  }
+  out.textContent=lines.join('\n');
+}
+
+// ─── Diagnóstico bot/messages (botón flotante) ───
+async function runMsgDiag(){
+  const out=document.getElementById('diag-output');
+  const modal=document.getElementById('diag-modal');
+  modal.style.display='flex';
+  out.textContent='Consultando Supabase...';
+  const lines=[];
+  const fetchJ=async(path,extra={})=>{
+    try{
+      const r=await fetch(SB+'/rest/v1/'+path,{headers:{apikey:SK,Authorization:'Bearer '+SK,...extra}});
+      const txt=await r.text();
+      let j=null;try{j=JSON.parse(txt);}catch(e){}
+      return {status:r.status,ok:r.ok,data:j,raw:txt.slice(0,300),headers:r.headers};
+    }catch(e){return {status:0,ok:false,error:String(e)};}
+  };
+  const countOf=async(path)=>{
+    const r=await fetch(SB+'/rest/v1/'+path,{headers:{apikey:SK,Authorization:'Bearer '+SK,Prefer:'count=exact','Range-Unit':'items',Range:'0-0'}});
+    return r.headers.get('content-range')||'?';
+  };
+  // 1) Últimos 10 mensajes globales (sin inserted_at)
+  lines.push('━━ ÚLTIMOS 10 MENSAJES (toda la base) ━━');
+  const r1=await fetchJ('messages?select=id,conversation_id,contact_id,direction,sent_by,body,timestamp&order=timestamp.desc&limit=10');
+  if(!r1.ok){lines.push('❌ HTTP '+r1.status+' '+r1.raw);}
+  else if(!r1.data||!r1.data.length){lines.push('⚠ Devolvió array vacío (HTTP 200) — puede ser tabla vacía o RLS');}
+  else{
+    r1.data.forEach((m,i)=>{
+      const ts=m.timestamp?new Date(m.timestamp).toLocaleString('es-AR'):'(sin ts)';
+      const bodyPrev=(m.body||'').slice(0,40).replace(/\n/g,' ');
+      lines.push(`[${i+1}] ${ts} | ${m.direction}/${m.sent_by||'?'} | conv:${m.conversation_id?m.conversation_id.slice(0,8):'NULL'} | cont:${m.contact_id?m.contact_id.slice(0,8):'NULL'} | "${bodyPrev}"`);
+    });
+  }
+  // 2) Comparativa de conteos vs tablas que SÍ funcionan
+  lines.push('\n━━ CONTEOS (formato: 0-N/total) ━━');
+  lines.push('messages       : '+(await countOf('messages?select=id')));
+  lines.push('contacts       : '+(await countOf('contacts?select=id'))+'   ← referencia, esta tabla SÍ se ve');
+  lines.push('conversations  : '+(await countOf('conversations?select=id'))+'   ← referencia');
+  // 3) Listar tablas accesibles vía OpenAPI (revela si messages está expuesta)
+  lines.push('\n━━ TABLAS EXPUESTAS EN POSTGREST ━━');
+  const oa=await fetchJ('?');
+  if(oa.ok&&oa.data&&oa.data.definitions){
+    const tablas=Object.keys(oa.data.definitions).sort();
+    lines.push('Tablas visibles ('+tablas.length+'): '+tablas.join(', '));
+    if(!tablas.includes('messages')) lines.push('❌ "messages" NO está en la lista — la tabla no existe o no está expuesta');
+    else lines.push('✓ "messages" está expuesta');
+  } else {
+    lines.push('No pude leer el schema OpenAPI');
+  }
+  // 4) ¿Hay alguna columna que se llame distinto? Pedimos UNA fila con select=*
+  lines.push('\n━━ ESTRUCTURA REAL DE messages ━━');
+  const r4=await fetchJ('messages?select=*&limit=1');
+  if(r4.ok){
+    if(r4.data&&r4.data.length){
+      lines.push('Columnas: '+Object.keys(r4.data[0]).join(', '));
+      lines.push('Ejemplo: '+JSON.stringify(r4.data[0]).slice(0,400));
+    } else {
+      lines.push('Tabla devolvió 0 filas con select=*');
+    }
+  } else {
+    lines.push('❌ HTTP '+r4.status+' '+r4.raw);
+  }
+  // 5) Mensajes de las últimas 24h
+  const ayer=new Date(Date.now()-24*3600*1000).toISOString();
+  const r5=await fetchJ(`messages?select=id,timestamp&timestamp=gte.${ayer}&order=timestamp.desc&limit=5`);
+  lines.push('\n━━ ÚLTIMAS 24h ━━');
+  if(!r5.ok) lines.push('❌ HTTP '+r5.status+' '+r5.raw);
+  else if(!r5.data||!r5.data.length) lines.push('❌ CERO mensajes en las últimas 24h');
+  else lines.push(`✓ ${r5.data.length} mensajes. Último: ${new Date(r5.data[0].timestamp).toLocaleString('es-AR')}`);
+  // 6) Chat actual
+  if(selectedConv){
+    lines.push('\n━━ CHAT ACTUAL ━━');
+    lines.push('selectedConv.id: '+selectedConv.id);
+    lines.push('selectedConv.contact_id: '+(selectedConv.contact_id||selectedConv.contacts?.id||'(no hay)'));
+    lines.push('selectedConv.contacts.phone: '+(selectedConv.contacts?.phone||'(no hay)'));
+    lines.push('selectedConv.last_message_at: '+(selectedConv.last_message_at||'(no hay)'));
+  }
+  // 7) Volcar TODOS los contactos con sus campos relevantes
+  lines.push('\n━━ TODOS LOS CONTACTOS (5) ━━');
+  const r7=await fetchJ('contacts?select=*&order=last_interaction.desc.nullslast');
+  if(r7.ok&&r7.data){
+    r7.data.forEach((c,i)=>{
+      const cols=Object.keys(c);
+      lines.push(`\n[${i+1}] ${c.name||c.nombre||'(sin nombre)'} | ${c.phone||'(sin tel)'} | id:${(c.id||'').slice(0,8)}`);
+      lines.push('   Columnas presentes: '+cols.join(', '));
+      // mostrar campos que probablemente tengan el historial
+      ['historial_texto','historial','history','chat_history','last_message','last_interaction','created_at','updated_at','total_cargas','total_loaded'].forEach(k=>{
+        if(c[k]!==undefined){
+          let v=c[k];
+          if(typeof v==='string'&&v.length>300) v=v.slice(0,300)+'…';
+          lines.push('   '+k+': '+JSON.stringify(v));
+        }
+      });
+    });
+  }
+  // 8) Volcar conversaciones
+  lines.push('\n━━ TODAS LAS CONVERSACIONES (5) ━━');
+  const r8=await fetchJ('conversations?select=*');
+  if(r8.ok&&r8.data){
+    r8.data.forEach((cv,i)=>{
+      lines.push(`\n[${i+1}] conv ${(cv.id||'').slice(0,8)} | contact_id:${(cv.contact_id||'NULL').slice(0,8)}`);
+      lines.push('   Columnas: '+Object.keys(cv).join(', '));
+      lines.push('   '+JSON.stringify(cv).slice(0,400));
+    });
+  }
+  out.textContent=lines.join('\n');
+}
+
 async function supa(path,opts={}){
   try{
     const res=await fetch(SB+'/rest/v1/'+path,{
       headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':opts.prefer||'return=representation',...(opts.headers||{})},
       method:opts.method||'GET',body:opts.body?JSON.stringify(opts.body):undefined
     });
-    if(!res.ok) return null;
+    window._supaDebug.lastPath=path;
+    window._supaDebug.lastStatus=res.status;
+    if(!res.ok){
+      try{ window._supaDebug.lastBody=await res.text(); }catch(e){ window._supaDebug.lastBody=String(e); }
+      window._supaDebug.lastError='HTTP '+res.status+' '+path+' :: '+(window._supaDebug.lastBody||'').slice(0,300);
+      console.warn('[supa]',window._supaDebug.lastError);
+      return null;
+    }
+    window._supaDebug.lastError=null;
     const ct=res.headers.get('content-type')||'';
     if(ct.includes('json')&&res.status!==204) return res.json();
     return [];
-  }catch(e){return null;}
+  }catch(e){
+    window._supaDebug.lastError='fetch error: '+(e&&e.message||e);
+    console.warn('[supa] fetch error',e);
+    return null;
+  }
 }
 
 // ── DASHBOARD ──
@@ -584,6 +787,64 @@ function renderDashboard(){
     <div class="kpi-card"><div class="kpi-val">${newClients.length}</div><div class="kpi-lbl">Clientes nuevos</div><div class="kpi-sub">primer contacto</div></div>
     <div class="kpi-card"><div class="kpi-val cg">${deposits.length}</div><div class="kpi-lbl">Depósitos</div><div class="kpi-sub">cargas aprobadas</div></div>
     <div class="kpi-card"><div class="kpi-val cam">${withdrawals.length}</div><div class="kpi-lbl">Retiros</div><div class="kpi-sub">solicitudes gestionadas</div></div>
+  `;
+
+  // ── KPIs de MONTOS y VOLUMEN ──
+  // Cuántos días tiene el período (para promedios diarios)
+  const daysInPeriod = currentPeriod==='hoy'
+    ? 1
+    : currentPeriod==='mes'
+      ? Math.max(1, Math.ceil((now - new Date(filterStart)) / (24*3600*1000)))
+      : Math.max(1, (() => {
+          const oldest = contacts.reduce((min,c)=>{
+            const d = c.created_at?new Date(c.created_at).getTime():null;
+            return d&&(!min||d<min)?d:min;
+          },null);
+          return oldest ? Math.ceil((now - oldest)/(24*3600*1000)) : 1;
+        })());
+
+  // Monto total cargado: aproximación = sum(total_loaded) de contactos cuya última_carga cae en el período
+  // (para contactos con carga reciente, total_loaded refleja su gasto acumulado)
+  const montoTotal = deposits.reduce((s,c)=>s+(parseFloat(c.total_loaded)||0),0);
+  const montoUSD   = deposits.reduce((s,c)=>s+(parseFloat(c.total_loaded_usd)||0),0);
+  // Total de cargas en el período (sum de total_cargas de los depositantes)
+  const cargasTotal = deposits.reduce((s,c)=>s+(parseInt(c.total_cargas)||0),0);
+  // Primeras cargas en el período: contactos que tienen total_cargas==1 y ultima_carga en el período
+  const primerasCargas = deposits.filter(c=>(parseInt(c.total_cargas)||0)===1).length;
+  // Ticket promedio: monto total / cantidad de cargas
+  const ticketProm = cargasTotal>0 ? montoTotal / cargasTotal : 0;
+  // Promedios diarios
+  const promCargasDia   = cargasTotal / daysInPeriod;
+  const promPrimerasDia = primerasCargas / daysInPeriod;
+
+  const fmtMoney = n => n>=1e6 ? '$'+(n/1e6).toFixed(2)+'M' : n>=1e3 ? '$'+(n/1e3).toFixed(1)+'k' : '$'+Math.round(n).toLocaleString('es-AR');
+  const fmtUSD   = n => 'U$'+Math.round(n).toLocaleString('es-AR');
+  const fmtNum   = n => n>=10 ? Math.round(n) : n.toFixed(1);
+
+  document.getElementById('kpi-montos').innerHTML=`
+    <div class="kpi-card"><div class="kpi-val cg">${fmtMoney(montoTotal)}</div><div class="kpi-lbl">Monto cargado</div><div class="kpi-sub">total ARS · ${deposits.length} depositantes</div></div>
+    <div class="kpi-card"><div class="kpi-val ca">${fmtMoney(ticketProm)}</div><div class="kpi-lbl">Ticket promedio</div><div class="kpi-sub">ARS por carga</div></div>
+    <div class="kpi-card"><div class="kpi-val">${fmtNum(promCargasDia)}</div><div class="kpi-lbl">Cargas/día</div><div class="kpi-sub">${cargasTotal} cargas · ${daysInPeriod} día${daysInPeriod===1?'':'s'}</div></div>
+    <div class="kpi-card"><div class="kpi-val cam">${fmtNum(promPrimerasDia)}</div><div class="kpi-lbl">1ras cargas/día</div><div class="kpi-sub">${primerasCargas} primeras cargas</div></div>
+  `;
+
+  // ── KPIs de CONVERSIÓN y RETENCIÓN ──
+  // Conversión: % de clientes nuevos del período que terminaron cargando
+  const newClientsQueCargaron = newClients.filter(c=>(parseInt(c.total_cargas)||0)>0).length;
+  const tasaConv = newClients.length>0 ? (newClientsQueCargaron/newClients.length)*100 : 0;
+  // Tiempo a 1ra carga: promedio (días) entre created_at y ultima_carga, solo para new clients que cargaron al menos 1
+  const tiempos = newClients.filter(c=>c.ultima_carga&&c.created_at&&(parseInt(c.total_cargas)||0)>0)
+    .map(c=>(new Date(c.ultima_carga)-new Date(c.created_at))/(24*3600*1000));
+  const tiempoProm = tiempos.length>0 ? tiempos.reduce((a,b)=>a+b,0)/tiempos.length : 0;
+  // Recurrencia: % de depositantes con 2+ cargas
+  const recurrentes = deposits.filter(c=>(parseInt(c.total_cargas)||0)>=2).length;
+  const tasaRecur = deposits.length>0 ? (recurrentes/deposits.length)*100 : 0;
+
+  document.getElementById('kpi-conversion').innerHTML=`
+    <div class="kpi-card"><div class="kpi-val ca">${tasaConv.toFixed(1)}%</div><div class="kpi-lbl">Conversión</div><div class="kpi-sub">${newClientsQueCargaron}/${newClients.length} nuevos cargaron</div></div>
+    <div class="kpi-card"><div class="kpi-val">${tiempoProm.toFixed(1)}d</div><div class="kpi-lbl">Tiempo a 1ra carga</div><div class="kpi-sub">${tiempos.length} muestras</div></div>
+    <div class="kpi-card"><div class="kpi-val cg">${tasaRecur.toFixed(0)}%</div><div class="kpi-lbl">Recurrencia</div><div class="kpi-sub">${recurrentes}/${deposits.length} con 2+ cargas</div></div>
+    <div class="kpi-card"><div class="kpi-val cam">${fmtUSD(montoUSD)}</div><div class="kpi-lbl">Total USD</div><div class="kpi-sub">cargado en dólar</div></div>
   `;
 
   const total=contacts.length;
@@ -889,31 +1150,105 @@ function updateMessageDOM(m){
   el.outerHTML=_msgHTML(m);
 }
 
+// Parsea el campo contacts.last_message del bot Teresa: "Cliente: X | Teresa: Y\n---\nCliente: X2 | Teresa: Y2"
+// Devuelve un array de pseudo-mensajes que loadMessages puede renderizar.
+function parseHistorialString(historial,lastInteraction){
+  if(!historial||typeof historial!=='string') return [];
+  const out=[];
+  const turns=historial.split(/\n---\n/);
+  // Anclamos los timestamps de los turnos al last_interaction. Si hay N turnos, distribuimos N segundos hacia atrás
+  // para que el orden visual sea correcto (el más viejo arriba, el más nuevo abajo).
+  const baseT=lastInteraction?new Date(lastInteraction).getTime():Date.now();
+  const n=turns.length;
+  turns.forEach((turn,i)=>{
+    const tBase=baseT-((n-1-i)*60000); // 1 min entre turnos para que el sort no los empate
+    // Cada turno puede tener "Cliente: X | Teresa: Y", o solo "Cliente: X", o solo "Teresa: Y"
+    const sepIdx=turn.indexOf(' | Teresa:');
+    let clienteMsg='',teresaMsg='';
+    if(sepIdx>=0){
+      clienteMsg=turn.slice(0,sepIdx).replace(/^Cliente:\s?/,'').trim();
+      teresaMsg=turn.slice(sepIdx+' | Teresa:'.length).trim();
+    } else if(turn.startsWith('Cliente:')){
+      clienteMsg=turn.replace(/^Cliente:\s?/,'').trim();
+    } else if(turn.startsWith('Teresa:')||turn.startsWith('KERO:')){
+      teresaMsg=turn.replace(/^(Teresa|KERO):\s?/,'').trim();
+    } else {
+      // Sin prefijo: lo metemos como nota
+      teresaMsg=turn.trim();
+    }
+    if(clienteMsg){
+      out.push({id:'hist-'+i+'-in',direction:'in',sent_by:'user',body:clienteMsg,timestamp:new Date(tBase).toISOString(),_fromHistorial:true});
+    }
+    if(teresaMsg){
+      out.push({id:'hist-'+i+'-out',direction:'out',sent_by:'teresa',body:teresaMsg,timestamp:new Date(tBase+1000).toISOString(),_fromHistorial:true});
+    }
+  });
+  return out;
+}
+
 async function loadMessages(convId){
   const areaEl=document.getElementById('messages-area');if(!areaEl)return;
   if(!areaEl.querySelector('.msg')) areaEl.innerHTML='<div class="empty-state lp">Cargando...</div>';
   let data=null;
+  const _diag={convId:convId||null,contactId:null,phone:null,r1:null,r2:null,r3:null,r4:null,err:null,fromHistorial:false};
   // 1) Primary: by conversation_id
-  if(convId) data=await supa(`messages?conversation_id=eq.${convId}&order=timestamp.asc&limit=150`);
+  if(convId){
+    data=await supa(`messages?conversation_id=eq.${convId}&order=timestamp.asc&limit=150`);
+    _diag.r1=data===null?'ERROR':data.length;
+    if(window._supaDebug?.lastError) _diag.err=window._supaDebug.lastError;
+  }
   // 2) Fallback: by contact_id
   if(!data||!data.length){
     const cid=selectedConv?.contact_id||selectedConv?.contacts?.id||selectedContactId;
-    if(cid) data=await supa(`messages?contact_id=eq.${cid}&order=timestamp.asc&limit=150`);
+    _diag.contactId=cid||null;
+    if(cid){
+      data=await supa(`messages?contact_id=eq.${cid}&order=timestamp.asc&limit=150`);
+      _diag.r2=data===null?'ERROR':data.length;
+      if(window._supaDebug?.lastError) _diag.err=window._supaDebug.lastError;
+    }
   }
   // 3) Last resort: by phone
   if(!data||!data.length){
     const phone=selectedConv?.contacts?.phone;
+    _diag.phone=phone||null;
     if(phone){
       const all=await supa(`contacts?phone=eq.${encodeURIComponent(phone)}&select=id`);
       if(all&&all.length){
         const inClause=all.map(c=>c.id).join(',');
         data=await supa(`messages?contact_id=in.(${inClause})&order=timestamp.asc&limit=150`);
+        _diag.r3=data===null?'ERROR':data.length;
+        if(window._supaDebug?.lastError) _diag.err=window._supaDebug.lastError;
       }
     }
   }
+  // 4) FALLBACK FINAL: parsear contacts.last_message (string concatenado por el bot)
+  if(!data||!data.length){
+    const cid=selectedConv?.contact_id||selectedConv?.contacts?.id||selectedContactId;
+    if(cid){
+      const cRow=await supa(`contacts?id=eq.${cid}&select=last_message,last_interaction&limit=1`);
+      if(cRow&&cRow[0]&&cRow[0].last_message){
+        data=parseHistorialString(cRow[0].last_message,cRow[0].last_interaction);
+        _diag.r4=data.length;
+        _diag.fromHistorial=true;
+      }
+    }
+  }
+  window._lastMsgDiag=_diag;
   const area=document.getElementById('messages-area');if(!area)return;
   if(!data||!data.length){
-    if(_lastMsgSig!=='EMPTY'){area.innerHTML='<div class="empty-state">Sin mensajes registrados</div>';_lastMsgSig='EMPTY';_renderedMsgIds.clear();}
+    const sig='EMPTY:'+JSON.stringify(_diag);
+    if(_lastMsgSig!==sig){
+      const errLine=_diag.err?`<div style="color:#E05555;margin-top:6px;font-size:12px">${_diag.err.replace(/</g,'&lt;')}</div>`:'';
+      area.innerHTML=`<div class="empty-state" style="font-size:13px;line-height:1.6;text-align:left;padding:1rem">
+        <div style="color:#D4922A;font-weight:600;margin-bottom:8px">Sin mensajes registrados — diagnóstico:</div>
+        <div>conv_id: <code>${_diag.convId||'(ninguno)'}</code> → ${_diag.r1===null?'no se consultó':_diag.r1+' filas'}</div>
+        <div>contact_id: <code>${_diag.contactId||'(ninguno)'}</code> → ${_diag.r2===null?'no se consultó':_diag.r2+' filas'}</div>
+        <div>phone: <code>${_diag.phone||'(ninguno)'}</code> → ${_diag.r3===null?'no se consultó':_diag.r3+' filas'}</div>
+        ${errLine}
+        <div style="margin-top:10px;color:#4A5A62;font-size:11px">Si los 3 dan 0 → el bot no está insertando en <b>messages</b>. Si dicen ERROR → RLS o auth en Supabase. Para ver más: F12 → Console.</div>
+      </div>`;
+      _lastMsgSig=sig;_renderedMsgIds.clear();
+    }
     return;
   }
   // Ordenamiento robusto
@@ -932,7 +1267,8 @@ async function loadMessages(convId){
   if(sig===_lastMsgSig) return;
   _lastMsgSig=sig;
   _renderedMsgIds=new Set(data.map(m=>m.id));
-  area.innerHTML=data.map(_msgHTML).join('');
+  const banner=_diag.fromHistorial?'<div style="background:#1E2830;border-left:3px solid #D4922A;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#D4922A">Mostrando historial reconstruido desde <code>contacts.last_message</code> (la tabla <code>messages</code> está vacía — el bot no la está populando). Los timestamps son aproximados.</div>':'';
+  area.innerHTML=banner+data.map(_msgHTML).join('');
   area.scrollTop=area.scrollHeight;
 }
 

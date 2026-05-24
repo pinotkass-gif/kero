@@ -53,6 +53,25 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .kpi-val{font-family:var(--font-d);font-size:36px;font-weight:700;line-height:1;margin-bottom:8px}
 .kpi-val.ca{color:var(--accent)}.kpi-val.cg{color:var(--green)}.kpi-val.cam{color:var(--amber)}.kpi-val.cr{color:var(--red)}
 .kpi-lbl{font-size:14px;color:var(--text)}.kpi-sub{font-size:12px;color:var(--text2);margin-top:3px}
+.sys-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.sys-card{border:1px solid var(--border);background:var(--bg2);padding:1.1rem 1.25rem;transition:background .3s,border-color .3s}
+.sys-top{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.sys-dot{width:9px;height:9px;border-radius:50%;background:var(--text2);flex:none}
+.sys-name{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.7px}
+.sys-state{font-family:var(--font-d);font-size:18px;font-weight:700;color:var(--text)}
+.sys-detail{font-size:11.5px;color:var(--text2);margin-top:3px;line-height:1.4}
+.sys-card.ok{background:rgba(61,170,114,.14);border-color:rgba(61,170,114,.5)}
+.sys-card.ok .sys-dot{background:var(--green);box-shadow:0 0 8px var(--green)}
+.sys-card.ok .sys-state{color:var(--green)}
+.sys-card.warn{background:rgba(212,146,42,.14);border-color:rgba(212,146,42,.5)}
+.sys-card.warn .sys-dot{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.sys-card.warn .sys-state{color:var(--amber)}
+.sys-card.down{background:rgba(224,85,85,.14);border-color:rgba(224,85,85,.55)}
+.sys-card.down .sys-dot{background:var(--red);box-shadow:0 0 8px var(--red)}
+.sys-card.down .sys-state{color:var(--red)}
+.sys-card.checking .sys-dot{animation:syspulse 1s infinite}
+@keyframes syspulse{0%,100%{opacity:.2}50%{opacity:1}}
+@media(max-width:760px){.sys-grid{grid-template-columns:repeat(2,1fr)}}
 .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:1.75rem}
 .chart-card{background:var(--bg2);border:1px solid var(--border);padding:1.5rem}
 .chart-title{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1.25rem}
@@ -250,7 +269,30 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
           <button class="period-btn" id="pb-total" onclick="setPeriod('total')">Total</button>
         </div>
       </div>
-      <div class="section-label" style="margin-top:0">Actividad del período</div>
+      <div class="section-label" style="margin-top:0">Estado del sistema</div>
+      <div class="sys-grid" id="sys-status">
+        <div class="sys-card checking" id="sys-evo">
+          <div class="sys-top"><span class="sys-dot"></span><span class="sys-name">Servidor + Evolution</span></div>
+          <div class="sys-state">Verificando…</div>
+          <div class="sys-detail">Consultando estado…</div>
+        </div>
+        <div class="sys-card checking" id="sys-wa">
+          <div class="sys-top"><span class="sys-dot"></span><span class="sys-name">WhatsApp</span></div>
+          <div class="sys-state">Verificando…</div>
+          <div class="sys-detail">Consultando estado…</div>
+        </div>
+        <div class="sys-card checking" id="sys-n8n">
+          <div class="sys-top"><span class="sys-dot"></span><span class="sys-name">n8n · Bot</span></div>
+          <div class="sys-state">Verificando…</div>
+          <div class="sys-detail">Consultando estado…</div>
+        </div>
+        <div class="sys-card checking" id="sys-sb">
+          <div class="sys-top"><span class="sys-dot"></span><span class="sys-name">Supabase · Datos</span></div>
+          <div class="sys-state">Verificando…</div>
+          <div class="sys-detail">Consultando estado…</div>
+        </div>
+      </div>
+      <div class="section-label">Actividad del período</div>
       <div class="kpi-grid" id="kpi-periodo">
         <div class="kpi-card"><div class="kpi-val ca lp">—</div><div class="kpi-lbl">Conversaciones</div><div class="kpi-sub">en el período</div></div>
         <div class="kpi-card"><div class="kpi-val lp">—</div><div class="kpi-lbl">Clientes nuevos</div><div class="kpi-sub">primer contacto</div></div>
@@ -411,6 +453,7 @@ const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6I
 const EV_URL='https://89.127.234.93.sslip.io';
 const EV_KEY='argenbet2024secretkey';
 const EV_INST='argenbet-bot';
+const N8N_HEALTH='https://89.127.234.93.sslip.io/n8n-health/healthz';
 
 // Cliente Supabase con Realtime (WebSocket)
 const _sbClient=(window.supabase&&window.supabase.createClient)
@@ -480,6 +523,9 @@ function init(){
   loadAll();
   // Realtime global: contactos y conversaciones (inserts, updates, deletes)
   setupGlobalRealtime();
+  // Estado del sistema (servicios) — chequeo inicial + cada 45s
+  checkSystemStatus();
+  setInterval(checkSystemStatus,45000);
   // Polling de respaldo muy suave (por si se cae el WebSocket)
   pollInterval=setInterval(loadAll,60000);
 }
@@ -763,6 +809,61 @@ async function supa(path,opts={}){
 }
 
 // ── DASHBOARD ──
+// ── Estado del sistema (Evolution / WhatsApp / n8n / Supabase) ──
+function _sysSet(id,state,txt,detail){
+  const c=document.getElementById('sys-'+id);
+  if(!c) return;
+  c.className='sys-card '+state;
+  const st=c.querySelector('.sys-state'); if(st) st.textContent=txt;
+  const dt=c.querySelector('.sys-detail'); if(dt) dt.textContent=detail;
+}
+function _sysSignal(ms){const a=new AbortController();setTimeout(()=>a.abort(),ms);return a.signal;}
+
+async function checkSystemStatus(){
+  // Evolution API + WhatsApp
+  (async()=>{
+    try{
+      const r=await fetch(EV_URL+'/instance/connectionState/'+EV_INST,{headers:{apikey:EV_KEY},signal:_sysSignal(9000)});
+      if(!r.ok){
+        _sysSet('evo','down','Error '+r.status,'Evolution respondió con error');
+        _sysSet('wa','down','Sin datos','No se pudo leer el estado de WhatsApp');
+        return;
+      }
+      const j=await r.json();
+      _sysSet('evo','ok','Online','Servidor y API funcionando');
+      const s=j&&j.instance&&j.instance.state;
+      if(s==='open') _sysSet('wa','ok','Conectado','Línea operativa — envía y recibe');
+      else if(s==='connecting') _sysSet('wa','warn','Conectando','Enlazándose — revisá el QR');
+      else _sysSet('wa','down','Desconectado','Hay que volver a vincular el teléfono');
+    }catch(e){
+      _sysSet('evo','down','Caído','No responde — revisá el VPS');
+      _sysSet('wa','down','Sin conexión','Evolution está caído');
+    }
+  })();
+  // n8n (motor del bot)
+  (async()=>{
+    try{
+      const r=await fetch(N8N_HEALTH,{signal:_sysSignal(9000)});
+      if(r.ok) _sysSet('n8n','ok','Online','El motor del bot está corriendo');
+      else if(r.status===502||r.status===503) _sysSet('n8n','down','Caído','Revisá el contenedor n8n');
+      else _sysSet('n8n','warn','Sin verificar','Falta activar el acceso HTTPS a n8n');
+    }catch(e){
+      _sysSet('n8n','warn','Sin verificar','Falta activar el acceso HTTPS a n8n');
+    }
+  })();
+  // Supabase
+  (async()=>{
+    try{
+      const r=await fetch(SB+'/rest/v1/',{headers:{apikey:SK},signal:_sysSignal(9000)});
+      if(r.ok) _sysSet('sb','ok','Activa','Base de datos respondiendo');
+      else if(r.status===502||r.status===503) _sysSet('sb','down','Pausada','Reactivala desde el panel de Supabase');
+      else _sysSet('sb','down','Error '+r.status,'Supabase respondió con error');
+    }catch(e){
+      _sysSet('sb','down','Sin respuesta','No se pudo contactar Supabase');
+    }
+  })();
+}
+
 function setPeriod(p){
   currentPeriod=p;
   ['hoy','mes','total'].forEach(x=>document.getElementById('pb-'+x).classList.toggle('active',x===p));

@@ -851,12 +851,16 @@ async function checkSystemStatus(){
       _sysSet('n8n','warn','Sin verificar','Falta activar el acceso HTTPS a n8n');
     }
   })();
-  // Supabase
+  // Supabase (usa la misma query que el CRM ya hace contra contacts)
   (async()=>{
     try{
-      const r=await fetch(SB+'/rest/v1/',{headers:{apikey:SK},signal:_sysSignal(9000)});
+      const r=await fetch(SB+'/rest/v1/contacts?select=id&limit=1',{
+        headers:{apikey:SK,Authorization:'Bearer '+SK},
+        signal:_sysSignal(9000)
+      });
       if(r.ok) _sysSet('sb','ok','Activa','Base de datos respondiendo');
-      else if(r.status===502||r.status===503) _sysSet('sb','down','Pausada','Reactivala desde el panel de Supabase');
+      else if(r.status===502||r.status===503||r.status===504) _sysSet('sb','down','Pausada','Reactivala desde el panel de Supabase');
+      else if(r.status===401||r.status===403) _sysSet('sb','down','Sin acceso','Revisá la API key de Supabase');
       else _sysSet('sb','down','Error '+r.status,'Supabase respondió con error');
     }catch(e){
       _sysSet('sb','down','Sin respuesta','No se pudo contactar Supabase');

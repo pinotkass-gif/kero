@@ -1796,7 +1796,7 @@ async function renderCampaign(){
     });
     if(evoRes.ok){
       const arr = await evoRes.json();
-      const list = Array.isArray(arr) ? arr : (arr.body || []);
+      const list = Array.isArray(arr) ? arr : (arr.instances || arr.body || []);
       list.forEach(it => {
         const name = it.name || (it.instance && it.instance.instanceName);
         const st = it.connectionStatus || (it.instance && it.instance.state) || 'unknown';
@@ -2100,7 +2100,7 @@ async function syncPhonesFromEvolution(){
     });
     if(!r.ok){ showToast('Error consultando Evolution', 'err'); return; }
     const data = await r.json();
-    evoList = Array.isArray(data) ? data : (data.body || []);
+    evoList = Array.isArray(data) ? data : (data.instances || data.body || []);
   } catch(e){
     showToast('No se pudo conectar a Evolution', 'err'); return;
   }

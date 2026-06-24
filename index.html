@@ -221,7 +221,7 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2)}
-.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--bg2);border:1px solid var(--border2);padding:12px 18px;font-size:14px;z-index:9999;transform:translateY(80px);opacity:0;transition:all 0.3s}
+.toast{position:fixed;top:1.5rem;right:1.5rem;bottom:auto;background:var(--bg2);border:1px solid var(--border2);padding:12px 18px;font-size:14px;z-index:10002;transform:translateY(-80px);opacity:0;transition:all 0.3s}
 .toast.show{transform:translateY(0);opacity:1}
 .toast.ok{border-left:3px solid var(--accent)}
 .toast.err{border-left:3px solid var(--red)}
@@ -454,7 +454,7 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
                 <th>Celular</th>
                 <th>WhatsApp</th>
                 <th>Campaña</th>
-                <th>Warm día</th>
+                <th>Warming 🔥</th>
                 <th>Env 24h</th>
                 <th>Límite</th>
                 <th>In 24h</th>
@@ -611,8 +611,8 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
 <div class="toast" id="toast"></div>
 
 <!-- Botones flotantes de diagnóstico mensajes -->
-<button id="diag-btn" onclick="runMsgDiag()" style="position:fixed;bottom:18px;right:18px;z-index:9999;background:#D4922A;color:#080B0D;border:none;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0.5px;text-transform:uppercase">Diagnóstico Bot</button>
-<button id="testins-btn" onclick="runTestInsert()" style="position:fixed;bottom:18px;right:185px;z-index:9999;background:#3DAA72;color:#080B0D;border:none;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:0.5px;text-transform:uppercase">Test Insert</button>
+<button id="diag-btn" onclick="runMsgDiag()" title="Diagnóstico tabla messages" style="position:fixed;bottom:10px;left:10px;z-index:500;background:rgba(212,146,42,0.45);color:#fff;border:none;padding:4px 8px;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;cursor:pointer;letter-spacing:0.3px;opacity:0.5" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5">diag</button>
+<button id="testins-btn" onclick="runTestInsert()" title="Test insert en messages" style="position:fixed;bottom:10px;left:62px;z-index:500;background:rgba(61,170,114,0.45);color:#fff;border:none;padding:4px 8px;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;cursor:pointer;letter-spacing:0.3px;opacity:0.5" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5">test</button>
 <div id="diag-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)document.getElementById('diag-modal').style.display='none'">
   <div style="background:#0F1215;border:1px solid #2A3A44;max-width:900px;width:100%;max-height:85vh;overflow:auto;padding:1.5rem;font-family:'DM Sans',sans-serif;color:#C8D8DC;font-size:13px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -1847,6 +1847,28 @@ async function renderCampaign(){
       ? `<button onclick="openQR('${l.instance_name}')" title="Generar QR" style="background:var(--blue);color:#fff;border:none;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:3px">📱 QR</button>`
       : `<button onclick="evoLogout('${l.instance_name}')" title="Cerrar sesión WhatsApp" style="background:var(--red);color:#fff;border:none;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:3px">🚪 Logout</button>`;
     const restartBtn = `<button onclick="evoRestart('${l.instance_name}')" title="Reiniciar instancia" style="background:var(--text3);color:#fff;border:none;padding:4px 8px;font-size:11px;cursor:pointer">↻</button>`;
+    const warmBtn = l.status !== 'warming'
+      ? `<button onclick="setWarming(${l.id})" title="Poner en warming (arranca el contador de días)" style="background:#c2410c;color:#fff;border:none;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:3px">🔥</button>`
+      : '';
+
+    // Celda de warming: fueguito de color + contador de días + aviso de lista.
+    // El color del fuego se logra con hue-rotate sobre el emoji 🔥 (naranja nativo):
+    //   rojo (arranca) → amarillo (a la mitad) → verde (lista a los 14 días)
+    let warmCell = '<span style="color:var(--text3)">—</span>';
+    if(l.status === 'warming'){
+      const d = (l.warming_days != null) ? l.warming_days : 0;
+      let flameFilter, txtColor, label, tip;
+      if(d >= 14){
+        flameFilter='hue-rotate(95deg) saturate(1.6)'; txtColor='var(--green)';  label=`${d}d ✅`; tip='Lista para empezar a mandar a fríos de a poco';
+      } else if(d >= 10){
+        flameFilter='hue-rotate(28deg) saturate(1.4)'; txtColor='var(--amber)';  label=`${d}/14`;  tip=`Casi lista — faltan ${14-d} días`;
+      } else {
+        flameFilter='hue-rotate(-22deg) saturate(1.5)'; txtColor='#f87171';      label=`${d}/14`;  tip='Recién empieza a calentar';
+      }
+      warmCell = `<span title="${tip}" style="color:${txtColor};font-weight:700;white-space:nowrap"><span style="filter:${flameFilter};display:inline-block">🔥</span> ${label}</span>`;
+    } else if(l.status === 'active'){
+      warmCell = `<span title="En campaña" style="color:var(--green);font-size:11px">en campaña</span>`;
+    }
 
     const devLabel = l.device_label
       ? `<span style="font-size:12px">${l.device_label}</span>`
@@ -1858,14 +1880,14 @@ async function renderCampaign(){
       <td>${devLabel}${devBtn}</td>
       <td>${waBadge}</td>
       <td>${statusBadge}</td>
-      <td>${l.warming_day}</td>
+      <td>${warmCell}</td>
       <td>${(l.sent_24h||0).toLocaleString()}</td>
       <td>${l.daily_limit}</td>
       <td>${l.inbound_24h||0}</td>
       <td style="color:${ratioColor};font-weight:600">${ratio!==null && ratio!==undefined ? ratio+'%' : '—'}</td>
       <td style="color:${(l.failed_24h||0) > 0 ? 'var(--red)' : 'var(--text)'}">${l.failed_24h||0}</td>
       <td style="color:${healthColor};font-weight:600">${l.health_score}</td>
-      <td style="white-space:nowrap">${qrBtn}${pauseBtn}${restartBtn}</td>
+      <td style="white-space:nowrap">${qrBtn}${warmBtn}${pauseBtn}${restartBtn}</td>
     </tr>`;
   }).join('');
   document.getElementById('camp-lines-tbody').innerHTML = linesHtml || '<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--text2)">Sin líneas cargadas</td></tr>';
@@ -1960,6 +1982,22 @@ async function setLineStatus(lineId, newStatus){
   });
   if(res){
     showToast('Línea actualizada', 'ok');
+    renderCampaign();
+  } else {
+    showToast('Error', 'err');
+  }
+}
+
+// Poner una línea en WARMING y arrancar su contador de días desde hoy.
+async function setWarming(lineId){
+  if(!confirm('¿Poner esta línea en WARMING?\n\nArranca el contador de días desde hoy y entra al cross-talk de calentamiento. A los 14 días te avisa que está lista para empezar a mandar a fríos de a poco.')) return;
+  const today = new Date().toISOString().slice(0,10);
+  const res = await supa('wa_lines?id=eq.'+lineId, {
+    method: 'PATCH',
+    body: { status: 'warming', warming_started_at: today }
+  });
+  if(res !== null){
+    showToast('Línea en warming 🔥', 'ok');
     renderCampaign();
   } else {
     showToast('Error', 'err');

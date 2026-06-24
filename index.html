@@ -2153,6 +2153,28 @@ async function openQR(instance){
 
 async function loadQRForCurrent(){
   if(!_qrCurrentInstance) return;
+
+  // Chequear estado actual. Si no está open, resetear (delete + create) para garantizar QR fresco.
+  document.getElementById('qr-status').textContent = '⏳ Preparando instancia…';
+  const stateRes = await evoCall('state', _qrCurrentInstance);
+  const stateData = stateRes ? (stateRes.body || stateRes) : null;
+  const currentState = stateData && stateData.instance ? stateData.instance.state : 'unknown';
+
+  if(currentState === 'open'){
+    document.getElementById('qr-container').innerHTML = '<div style="color:#000">Ya está conectada. Si querés cambiar el número, primero hacé Logout.</div>';
+    document.getElementById('qr-status').textContent = '✅ Línea ya conectada — no hace falta QR.';
+    return;
+  }
+
+  // Reset: delete + create (cada uno con su pausa). Garantiza QR fresco sin estados zombie.
+  document.getElementById('qr-status').textContent = '🧹 Limpiando instancia previa…';
+  await evoCall('delete', _qrCurrentInstance);
+  await new Promise(r => setTimeout(r, 1500));
+  document.getElementById('qr-status').textContent = '✨ Creando instancia nueva…';
+  await evoCall('create', _qrCurrentInstance);
+  await new Promise(r => setTimeout(r, 1500));
+
+  document.getElementById('qr-status').textContent = '📲 Pidiendo QR a Evolution…';
   const res = await evoCall('qr', _qrCurrentInstance);
   if(!res){
     document.getElementById('qr-status').textContent = '❌ Error consultando Evolution';

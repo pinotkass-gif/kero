@@ -2112,7 +2112,7 @@ async function syncPhonesFromEvolution(){
     const st   = it.connectionStatus || (it.instance && it.instance.state) || '';
     const ownerJid = it.ownerJid || it.owner || (it.instance && (it.instance.owner || it.instance.ownerJid)) || '';
     const phone = String(ownerJid).replace(/@.*$/, '').replace(/[^0-9]/g,'');
-    if(name && st === 'open' && phone) pairs.push({ name, phone });
+    if(name && name.startsWith('ganamos-bot-') && st === 'open' && phone) pairs.push({ name, phone });
   });
 
   if(pairs.length === 0){

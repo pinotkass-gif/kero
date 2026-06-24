@@ -448,6 +448,7 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
             <thead>
               <tr>
                 <th>Línea</th>
+                <th>Celular</th>
                 <th>WhatsApp</th>
                 <th>Campaña</th>
                 <th>Warm día</th>
@@ -461,7 +462,7 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
               </tr>
             </thead>
             <tbody id="camp-lines-tbody">
-              <tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text2)">Cargando…</td></tr>
+              <tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--text2)">Cargando…</td></tr>
             </tbody>
           </table>
         </div>
@@ -487,36 +488,26 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
         </div>
       </div>
 
-      <div class="section-label">Proxies / Distribución de IP</div>
+      <div class="section-label">Celulares físicos</div>
       <div class="chart-card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px">
-          <div style="font-size:13px;color:var(--text2);max-width:600px;line-height:1.5">
-            Asigná un proxy residencial a cada línea para que cada una salga por una IP distinta.
-            Sin esto, las 17 salen por la misma IP del VPS (alto riesgo de baneo cascada).
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="period-btn" onclick="openWebshareModal()" style="height:36px;padding:0 14px;background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600">🔄 Sync Webshare</button>
-            <button class="period-btn" onclick="openAddProxyModal()" style="height:36px;padding:0 14px">+ Agregar manual</button>
-            <button class="period-btn" onclick="autoAssignProxies()" style="height:36px;padding:0 14px">↻ Auto-asignar 1:1</button>
-            <button class="period-btn" onclick="showApplyScript()" style="height:36px;padding:0 14px;background:var(--green);color:#fff;border-color:var(--green);font-weight:600">📋 Generar script</button>
-          </div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:1rem;line-height:1.5">
+          Agrupá las líneas por <strong>celular físico</strong>: mismas sesiones en el mismo aparato comparten IP (4G/5G) y fingerprint.
+          Si banean una sesión de un celu, <strong>pausá las otras del mismo celu 24-48h</strong> para no quemarlas en cascada.
+          Asigná o cambiá el celular desde el botón <span style="background:var(--bg3);padding:2px 6px;font-size:11px">📱</span> de cada fila en la tabla de arriba.
         </div>
         <div class="table-wrap" style="max-height:none">
           <table>
             <thead>
               <tr>
-                <th>Label</th>
-                <th>Host:Port</th>
-                <th>Protocolo</th>
-                <th>Usuario</th>
-                <th>País</th>
-                <th>Estado</th>
-                <th>Asignado a</th>
-                <th></th>
+                <th>Celular</th>
+                <th>Sesiones</th>
+                <th>Activas</th>
+                <th>Líneas</th>
+                <th>Riesgo</th>
               </tr>
             </thead>
-            <tbody id="camp-proxies-tbody">
-              <tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text2)">Sin proxies cargados. Hacé click en "+ Agregar proxy".</td></tr>
+            <tbody id="camp-devices-tbody">
+              <tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text2)">Cargando…</td></tr>
             </tbody>
           </table>
         </div>
@@ -528,39 +519,31 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
   </div>
 </div>
 
-<!-- MODAL: Agregar proxy -->
-<div class="modal-overlay" id="proxy-modal">
-  <div class="modal">
+<!-- MODAL: Asignar celular físico -->
+<div class="modal-overlay" id="device-modal">
+  <div class="modal" style="max-width:480px">
     <div class="modal-header">
-      <div class="modal-title">Agregar proxy</div>
-      <button class="modal-close" onclick="closeProxyModal()">×</button>
+      <div class="modal-title" id="device-modal-title">Asignar celular</div>
+      <button class="modal-close" onclick="closeDeviceModal()">×</button>
     </div>
     <div class="modal-body">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:1rem;line-height:1.5">
+        Indicá en qué <strong>celular físico</strong> corre esta línea.
+        Escribí un nombre nuevo (ej. "Moto G04 #1", "Samsung A14") o elegí uno existente del menú.
+      </div>
       <div class="form-grid">
-        <div class="form-field"><label class="form-label">Label (opcional)</label><input class="form-input" id="px-label" placeholder="iproyal-ar-01"></div>
-        <div class="form-field"><label class="form-label">Host</label><input class="form-input" id="px-host" placeholder="geo.iproyal.com"></div>
-        <div class="form-field"><label class="form-label">Puerto</label><input class="form-input" id="px-port" placeholder="12321"></div>
-        <div class="form-field"><label class="form-label">Protocolo</label>
-          <select class="form-select" id="px-protocol">
-            <option value="http">http</option>
-            <option value="https">https</option>
-            <option value="socks5">socks5</option>
-            <option value="socks4">socks4</option>
-          </select>
+        <div class="form-field full">
+          <label class="form-label">Celular</label>
+          <input class="form-input" id="dev-input" list="dev-existing" placeholder="Moto G04 #1">
+          <datalist id="dev-existing"></datalist>
         </div>
-        <div class="form-field"><label class="form-label">Usuario</label><input class="form-input" id="px-user" placeholder="user-country-ar"></div>
-        <div class="form-field"><label class="form-label">Password</label><input class="form-input" id="px-pass" type="password"></div>
-        <div class="form-field"><label class="form-label">País</label><input class="form-input" id="px-country" value="AR"></div>
-        <div class="form-field full"><label class="form-label">Notas</label><input class="form-input" id="px-notes" placeholder="proveedor, plan, fecha de renovación..."></div>
       </div>
-      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg3);font-size:12px;color:var(--text2);line-height:1.5">
-        💡 <strong>Cómo conseguir estos datos</strong>: en el panel del proveedor (IPRoyal, Proxy-Cheap, etc.) buscá la sección "Endpoints" o "Proxy list".
-        Vas a ver algo como: <code>geo.iproyal.com:12321:tu_user:tu_pass</code>. Esos 4 campos van acá.
-      </div>
+      <div id="dev-warning" style="margin-top:0.75rem;padding:0.75rem;background:rgba(229,194,84,0.15);border:1px solid var(--amber);font-size:12px;color:var(--amber);display:none"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeProxyModal()">Cancelar</button>
-      <button class="btn-save" onclick="saveProxy()">Guardar proxy</button>
+      <button class="btn-cancel" onclick="clearDevice()" style="background:transparent;color:var(--text2)">Quitar</button>
+      <button class="btn-cancel" onclick="closeDeviceModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveDevice()">Guardar</button>
     </div>
   </div>
 </div>
@@ -595,58 +578,6 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
   </div>
 </div>
 
-<!-- MODAL: Sync Webshare -->
-<div class="modal-overlay" id="webshare-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">Sync con Webshare</div>
-      <button class="modal-close" onclick="closeWebshareModal()">×</button>
-    </div>
-    <div class="modal-body">
-      <div style="font-size:13px;color:var(--text2);margin-bottom:1rem;line-height:1.5">
-        Pegá tu <strong>API token</strong> de Webshare (lo encontrás en <code>dashboard.webshare.io → Profile → API</code>).
-        Se guarda en Supabase y se usa para sincronizar la lista cada hora.
-      </div>
-      <div class="form-grid">
-        <div class="form-field full">
-          <label class="form-label">Webshare API Token</label>
-          <input class="form-input" id="ws-token" placeholder="abcdef1234567890...">
-        </div>
-      </div>
-      <div style="margin-top:1rem;padding:0.75rem;background:var(--bg3);font-size:12px;color:var(--text2);line-height:1.5">
-        💡 El sync trae los 10 proxies, los crea/actualiza en Supabase y detecta si alguna IP cambió.
-        Si una IP cambia, la línea asociada queda marcada como <strong>"necesita re-apply"</strong> y vas a tener que regenerar el script.
-      </div>
-      <div id="ws-status" style="margin-top:1rem;font-size:13px;color:var(--text2)"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeWebshareModal()">Cerrar</button>
-      <button class="btn-save" onclick="saveWebshareToken()">Guardar token</button>
-      <button class="btn-save" onclick="syncWebshareNow()" style="background:var(--blue)">🔄 Sync ahora</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: Script de aplicación -->
-<div class="modal-overlay" id="script-modal">
-  <div class="modal" style="max-width:900px">
-    <div class="modal-header">
-      <div class="modal-title">Aplicar proxies a Evolution</div>
-      <button class="modal-close" onclick="closeScriptModal()">×</button>
-    </div>
-    <div class="modal-body">
-      <div style="font-size:13px;color:var(--text2);margin-bottom:1rem;line-height:1.5">
-        Copiá este script entero, hacé SSH al VPS (<code>ssh root@89.127.234.93</code>) y pegalo en la terminal.
-        Va a reconfigurar las instancias de Evolution con sus proxies asignados.
-      </div>
-      <pre id="script-output" style="background:var(--bg3);padding:1rem;font-size:12px;line-height:1.5;overflow:auto;max-height:50vh;font-family:'Courier New',monospace;color:var(--text);white-space:pre-wrap;word-break:break-all">Generando…</pre>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeScriptModal()">Cerrar</button>
-      <button class="btn-save" onclick="copyScript()">📋 Copiar al portapapeles</button>
-    </div>
-  </div>
-</div>
 
 <div class="modal-overlay" id="contact-modal">
   <div class="modal">
@@ -1899,8 +1830,14 @@ async function renderCampaign(){
       : `<button onclick="evoLogout('${l.instance_name}')" title="Cerrar sesión WhatsApp" style="background:var(--red);color:#fff;border:none;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:3px">🚪 Logout</button>`;
     const restartBtn = `<button onclick="evoRestart('${l.instance_name}')" title="Reiniciar instancia" style="background:var(--text3);color:#fff;border:none;padding:4px 8px;font-size:11px;cursor:pointer">↻</button>`;
 
+    const devLabel = l.device_label
+      ? `<span style="font-size:12px">${l.device_label}</span>`
+      : `<span style="font-size:11px;color:var(--text3);font-style:italic">— sin asignar</span>`;
+    const devBtn = `<button onclick="openDeviceModal(${l.id}, '${(l.device_label||'').replace(/'/g,"\\'")}', '${l.instance_name}')" title="Asignar/cambiar celular" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:2px 6px;font-size:11px;cursor:pointer;margin-left:4px">📱</button>`;
+
     return `<tr>
       <td><strong>${l.instance_name}</strong><div style="font-size:11px;color:var(--text2)">${l.phone_number||'—'}</div></td>
+      <td>${devLabel}${devBtn}</td>
       <td>${waBadge}</td>
       <td>${statusBadge}</td>
       <td>${l.warming_day}</td>
@@ -1913,7 +1850,7 @@ async function renderCampaign(){
       <td style="white-space:nowrap">${qrBtn}${pauseBtn}${restartBtn}</td>
     </tr>`;
   }).join('');
-  document.getElementById('camp-lines-tbody').innerHTML = linesHtml || '<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--text2)">Sin líneas cargadas</td></tr>';
+  document.getElementById('camp-lines-tbody').innerHTML = linesHtml || '<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--text2)">Sin líneas cargadas</td></tr>';
 
   // 5) A/B test por variante (1 query agregada con count)
   for(const touch of [1,2,3]){
@@ -2011,202 +1948,100 @@ async function setLineStatus(lineId, newStatus){
   }
 }
 
-// ── PROXIES ──
-async function renderProxies(){
-  const proxies = await supa('wa_proxies?select=*&order=id.asc') || [];
-  const linesWithProxy = await supa('v_lines_with_proxy?select=*') || [];
+// ── CELULARES FÍSICOS (device_label en wa_lines) ──
+let _devEditingLineId = null;
 
-  if(proxies.length === 0){
-    document.getElementById('camp-proxies-tbody').innerHTML =
-      '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--text2)">Sin proxies cargados. Hacé click en "+ Agregar proxy".</td></tr>';
+async function renderDevices(){
+  const rows = await supa('v_devices_summary?select=*') || [];
+  if(rows.length === 0){
+    document.getElementById('camp-devices-tbody').innerHTML =
+      '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--text2)">Sin líneas cargadas.</td></tr>';
     return;
   }
-
-  const html = proxies.map(p=>{
-    const assigned = linesWithProxy.filter(l => l.proxy_id === p.id);
-    const assignedTxt = assigned.length > 0
-      ? assigned.map(l=>l.instance_name).join(', ')
-      : '<span style="color:var(--text2)">— sin asignar</span>';
-    const statusColors = {active:'var(--green)', failed:'var(--red)', unused:'var(--text2)', testing:'var(--amber)'};
-    const statusBadge = `<span style="background:${statusColors[p.status]||'var(--text2)'};color:#fff;padding:2px 8px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase">${p.status}</span>`;
+  const html = rows.map(d => {
+    const isUnassigned = d.device_label === '— sin asignar';
+    const sessions = d.total_lines;
+    const active   = d.active_lines;
+    let riskTxt, riskColor;
+    if(isUnassigned){
+      riskTxt = '—'; riskColor = 'var(--text2)';
+    } else if(sessions >= 3 && active >= 2){
+      riskTxt = '🔴 Alto (3+ ses)'; riskColor = 'var(--red)';
+    } else if(sessions >= 2 && active >= 2){
+      riskTxt = '🟡 Medio (2 ses act)'; riskColor = 'var(--amber)';
+    } else if(active === 1){
+      riskTxt = '🟢 Bajo (1 activa)'; riskColor = 'var(--green)';
+    } else {
+      riskTxt = '⚪ Sin actividad'; riskColor = 'var(--text2)';
+    }
+    const labelHtml = isUnassigned
+      ? `<span style="color:var(--text3);font-style:italic">${d.device_label}</span>`
+      : `<strong>📱 ${d.device_label}</strong>`;
     return `<tr>
-      <td><strong>${p.label||'sin label'}</strong></td>
-      <td><code style="font-size:12px">${p.host}:${p.port}</code></td>
-      <td>${p.protocol}</td>
-      <td><code style="font-size:11px">${p.username||'—'}</code></td>
-      <td>${p.country||'—'}</td>
-      <td>${statusBadge}</td>
-      <td style="font-size:12px">${assignedTxt}</td>
-      <td>
-        <button onclick="deleteProxy(${p.id})" style="background:var(--red);color:#fff;border:none;padding:4px 10px;font-size:11px;cursor:pointer">🗑</button>
-      </td>
+      <td>${labelHtml}</td>
+      <td>${sessions}</td>
+      <td style="color:${active>0?'var(--green)':'var(--text2)'};font-weight:600">${active}</td>
+      <td style="font-size:12px;color:var(--text2)">${d.instances||'—'}</td>
+      <td style="color:${riskColor};font-weight:600;font-size:12px">${riskTxt}</td>
     </tr>`;
   }).join('');
-  document.getElementById('camp-proxies-tbody').innerHTML = html;
+  document.getElementById('camp-devices-tbody').innerHTML = html;
 }
 
-function openAddProxyModal(){
-  document.getElementById('px-label').value='';
-  document.getElementById('px-host').value='';
-  document.getElementById('px-port').value='';
-  document.getElementById('px-protocol').value='http';
-  document.getElementById('px-user').value='';
-  document.getElementById('px-pass').value='';
-  document.getElementById('px-country').value='AR';
-  document.getElementById('px-notes').value='';
-  document.getElementById('proxy-modal').classList.add('open');
-}
-function closeProxyModal(){ document.getElementById('proxy-modal').classList.remove('open'); }
-
-async function saveProxy(){
-  const body = {
-    label:    document.getElementById('px-label').value || null,
-    host:     document.getElementById('px-host').value.trim(),
-    port:     document.getElementById('px-port').value.trim(),
-    protocol: document.getElementById('px-protocol').value,
-    username: document.getElementById('px-user').value || null,
-    password: document.getElementById('px-pass').value || null,
-    country:  document.getElementById('px-country').value || 'AR',
-    notes:    document.getElementById('px-notes').value || null,
-    status:   'active'
+async function openDeviceModal(lineId, currentLabel, instanceName){
+  _devEditingLineId = lineId;
+  document.getElementById('device-modal-title').textContent = 'Celular de ' + instanceName;
+  document.getElementById('dev-input').value = currentLabel || '';
+  document.getElementById('dev-warning').style.display = 'none';
+  // Cargar lista de devices existentes en el datalist
+  const rows = await supa('v_devices_summary?select=device_label,total_lines,active_lines') || [];
+  const existing = rows.filter(r => r.device_label !== '— sin asignar');
+  document.getElementById('dev-existing').innerHTML =
+    existing.map(r => `<option value="${r.device_label}">${r.device_label} (${r.active_lines}/${r.total_lines} activas)</option>`).join('');
+  document.getElementById('device-modal').classList.add('open');
+  // Live warning on input
+  document.getElementById('dev-input').oninput = function(){
+    const v = this.value.trim();
+    const hit = existing.find(r => r.device_label === v);
+    const warn = document.getElementById('dev-warning');
+    if(hit && hit.total_lines >= 2){
+      warn.style.display = 'block';
+      warn.innerHTML = `⚠️ "${v}" ya tiene <strong>${hit.total_lines} sesiones</strong>. Sumando esta serían ${hit.total_lines+1} → más riesgo de baneo en cascada.`;
+    } else {
+      warn.style.display = 'none';
+    }
   };
-  if(!body.host || !body.port){
-    showToast('Host y puerto son obligatorios', 'err');
-    return;
-  }
-  const res = await supa('wa_proxies', {method:'POST', body});
-  if(res){
-    showToast('Proxy agregado', 'ok');
-    closeProxyModal();
-    renderProxies();
+}
+function closeDeviceModal(){
+  document.getElementById('device-modal').classList.remove('open');
+  _devEditingLineId = null;
+}
+
+async function saveDevice(){
+  if(!_devEditingLineId){ closeDeviceModal(); return; }
+  const v = document.getElementById('dev-input').value.trim();
+  const res = await supa('wa_lines?id=eq.'+_devEditingLineId, {
+    method:'PATCH',
+    body:{ device_label: v || null }
+  });
+  if(res !== null){
+    showToast('Celular asignado', 'ok');
+    closeDeviceModal();
+    renderCampaign();
   } else {
     showToast('Error al guardar', 'err');
   }
 }
 
-async function deleteProxy(id){
-  if(!confirm('¿Borrar este proxy? Las líneas que lo usaban quedan sin proxy.')) return;
-  // primero limpiar referencias
-  await supa('wa_lines?proxy_id=eq.'+id, {method:'PATCH', body:{proxy_id:null}});
-  const res = await supa('wa_proxies?id=eq.'+id, {method:'DELETE'});
-  showToast('Proxy borrado', 'ok');
-  renderProxies();
+async function clearDevice(){
+  if(!_devEditingLineId){ closeDeviceModal(); return; }
+  await supa('wa_lines?id=eq.'+_devEditingLineId, {
+    method:'PATCH',
+    body:{ device_label: null }
+  });
+  showToast('Asignación quitada', 'ok');
+  closeDeviceModal();
   renderCampaign();
-}
-
-async function autoAssignProxies(){
-  if(!confirm('Esto va a asignar 1 proxy a cada línea (1:1, ordenado por id).\n\n¿Confirmás?')) return;
-  const res = await fetch(SB+'/rest/v1/rpc/auto_assign_proxies', {
-    method:'POST',
-    headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json'}
-  });
-  if(res.ok){
-    showToast('Proxies asignados. Ahora generá el script para aplicarlos.', 'ok');
-    renderProxies();
-    renderCampaign();
-  } else {
-    showToast('Error al asignar', 'err');
-  }
-}
-
-async function showApplyScript(){
-  document.getElementById('script-modal').classList.add('open');
-  document.getElementById('script-output').textContent = 'Generando…';
-
-  const rows = await supa('v_lines_with_proxy?select=*') || [];
-  const withProxy = rows.filter(r => r.proxy_id !== null && r.proxy_host);
-
-  if(withProxy.length === 0){
-    document.getElementById('script-output').textContent =
-      '⚠️ No hay líneas con proxy asignado. Primero hacé click en "↻ Auto-asignar 1:1".';
-    return;
-  }
-
-  // Generar comandos curl para cada línea
-  const header = `#!/bin/bash\n# Script generado por KERO CRM - aplicar proxies a Evolution\n# Pegá esto en SSH del VPS\n\nA="apikey:argenbet2024secretkey"\nU="https://89.127.234.93.sslip.io"\n\n`;
-  const cmds = withProxy.map(r => {
-    const proxy = {
-      host:     r.proxy_host,
-      port:     String(r.proxy_port),
-      protocol: r.proxy_protocol || 'http'
-    };
-    if(r.proxy_user) proxy.username = r.proxy_user;
-    if(r.proxy_pass) proxy.password = r.proxy_pass;
-    const payload = JSON.stringify({enabled:true, proxy});
-    return `echo "→ ${r.instance_name} (${r.proxy_label||'proxy '+r.proxy_id})"\ncurl -s -X POST "$U/proxy/set/${r.instance_name}" \\\n  -H "$A" -H "Content-Type: application/json" \\\n  -d '${payload}'\necho ""\n`;
-  }).join('\n');
-
-  const footer = `\necho "✅ Listo. Reiniciá las instancias para que tomen el proxy:"\necho "for i in ${withProxy.map(r=>r.instance_name).join(' ')}; do"\necho "  curl -s -X PUT \\\"\\$U/instance/restart/\\$i\\\" -H \\\"\\$A\\\""\necho "done"\n`;
-
-  document.getElementById('script-output').textContent = header + cmds + footer;
-}
-
-function closeScriptModal(){ document.getElementById('script-modal').classList.remove('open'); }
-
-function copyScript(){
-  const txt = document.getElementById('script-output').textContent;
-  navigator.clipboard.writeText(txt).then(()=>{
-    showToast('Script copiado al portapapeles', 'ok');
-  });
-}
-
-// ── WEBSHARE SYNC ──
-async function openWebshareModal(){
-  document.getElementById('ws-status').textContent = '';
-  // Cargar token actual si existe
-  const cfg = await supa('system_config?key=eq.webshare_api_token&select=value');
-  const tok = cfg && cfg[0] && cfg[0].value;
-  const tokInput = document.getElementById('ws-token');
-  tokInput.value = (tok && tok !== 'EDITAR_PEGAR_TOKEN_DE_WEBSHARE') ? tok : '';
-  // Mostrar último sync
-  const lastSync = await supa('system_config?key=eq.webshare_last_sync&select=value');
-  const last = lastSync && lastSync[0] && lastSync[0].value;
-  if(last && last !== 'never'){
-    document.getElementById('ws-status').innerHTML = '<strong>Último sync:</strong> ' + new Date(last).toLocaleString();
-  } else {
-    document.getElementById('ws-status').innerHTML = '<strong>Último sync:</strong> nunca';
-  }
-  document.getElementById('webshare-modal').classList.add('open');
-}
-function closeWebshareModal(){ document.getElementById('webshare-modal').classList.remove('open'); }
-
-async function saveWebshareToken(){
-  const tok = document.getElementById('ws-token').value.trim();
-  if(!tok){ showToast('Pegá el token primero', 'err'); return; }
-  const res = await supa('system_config?key=eq.webshare_api_token', {
-    method: 'PATCH',
-    body: { value: tok }
-  });
-  if(res){
-    showToast('Token guardado', 'ok');
-  } else {
-    showToast('Error al guardar token', 'err');
-  }
-}
-
-async function syncWebshareNow(){
-  const tok = document.getElementById('ws-token').value.trim();
-  if(!tok){ showToast('Guardá el token primero', 'err'); return; }
-  // Guardar token antes de sincronizar (por si lo cambió y no clickeó "Guardar")
-  await supa('system_config?key=eq.webshare_api_token', { method:'PATCH', body:{value:tok} });
-
-  document.getElementById('ws-status').innerHTML = '⏳ Sincronizando…';
-  try {
-    const r = await fetch('https://89.127.234.93.sslip.io/n8n-proxy/webhook/sync-webshare', { method: 'POST' });
-    const data = await r.json().catch(()=>({}));
-    if(r.ok){
-      document.getElementById('ws-status').innerHTML = '✅ Sync OK — ' + (data.synced || 0) + ' proxies actualizados';
-      showToast('Sync completado', 'ok');
-      renderProxies();
-      renderCampaign();
-    } else {
-      document.getElementById('ws-status').innerHTML = '❌ Error: ' + (data.message || r.statusText);
-      showToast('Error en sync', 'err');
-    }
-  } catch(e){
-    document.getElementById('ws-status').innerHTML = '❌ Error de conexión a n8n: ' + e.message;
-    showToast('No se pudo conectar a n8n', 'err');
-  }
 }
 
 // ── EVOLUTION PROXY (vía n8n, expuesto por Caddy HTTPS) ──
@@ -2329,11 +2164,11 @@ async function evoRestart(instance){
   }
 }
 
-// Wirear la carga de proxies al render principal de la campaña
+// Wirear la carga de la grilla de celulares al render principal de la campaña
 const _origRenderCampaign = renderCampaign;
 renderCampaign = async function(){
   await _origRenderCampaign();
-  await renderProxies();
+  await renderDevices();
 };
 
 </script>

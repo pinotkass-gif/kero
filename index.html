@@ -438,9 +438,12 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
         <div class="kpi-card"><div class="kpi-val" id="camp-burned">—</div><div class="kpi-lbl">Quemados</div><div class="kpi-sub">completaron T3 sin responder</div></div>
       </div>
 
-      <div class="section-label" style="display:flex;justify-content:space-between;align-items:center">
+      <div class="section-label" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
         <span>Salud de líneas</span>
-        <button class="period-btn" onclick="refreshEvolutionStates()" style="height:30px;padding:0 12px;font-size:11px">🔄 Refrescar conexiones</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="period-btn" onclick="syncPhonesFromEvolution()" style="height:30px;padding:0 12px;font-size:11px;background:var(--blue);color:#fff;border-color:var(--blue);font-weight:600" title="Pisa el phone_number de Supabase con el numero realmente conectado en Evolution">🔄 Sync números desde Evolution</button>
+          <button class="period-btn" onclick="refreshEvolutionStates()" style="height:30px;padding:0 12px;font-size:11px">↻ Refrescar conexiones</button>
+        </div>
       </div>
       <div class="chart-card" style="padding:0">
         <div class="table-wrap" style="max-height:none">
@@ -1783,7 +1786,7 @@ async function renderCampaign(){
 
   // 4) Salud líneas + estado WhatsApp (Evolution)
   const lines = await supa('v_lines_health?select=*') || [];
-  // Traer estado de conexiones desde Evolution via n8n proxy
+  // Traer estado + numero real conectado de Evolution via n8n proxy
   let evoStates = {};
   try {
     const evoRes = await fetch(EVO_PROXY_URL, {
@@ -1797,7 +1800,10 @@ async function renderCampaign(){
       list.forEach(it => {
         const name = it.name || (it.instance && it.instance.instanceName);
         const st = it.connectionStatus || (it.instance && it.instance.state) || 'unknown';
-        if(name) evoStates[name] = st;
+        // owner / ownerJid puede venir en distintos lugares segun version de Evolution
+        const ownerJid = it.ownerJid || it.owner || (it.instance && (it.instance.owner || it.instance.ownerJid)) || '';
+        const ownerPhone = String(ownerJid).replace(/@.*$/, '').replace(/[^0-9]/g,'');
+        if(name) evoStates[name] = { state: st, phone: ownerPhone };
       });
     }
   } catch(e){ console.warn('No se pudo consultar Evolution', e); }
@@ -1814,12 +1820,24 @@ async function renderCampaign(){
     const statusBadge = `<span style="background:${statusColors[l.status]||'var(--text2)'};color:#fff;padding:2px 8px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase">${l.status}</span>`;
     const healthColor = l.health_score >= 80 ? 'var(--green)' : (l.health_score >= 50 ? 'var(--amber)' : 'var(--red)');
 
-    // Estado WhatsApp (Evolution)
-    const wa = evoStates[l.instance_name] || 'unknown';
+    // Estado WhatsApp (Evolution) — ahora trae { state, phone }
+    const evo = evoStates[l.instance_name] || { state: 'unknown', phone: '' };
+    const wa = evo.state;
     const waColors = {open:'var(--green)', connecting:'var(--amber)', close:'var(--red)', unknown:'var(--text2)'};
     const waLabels = {open:'Conectada', connecting:'Conectando…', close:'Desconectada', unknown:'?'};
     const waDot = `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${waColors[wa]||'var(--text2)'};box-shadow:0 0 6px ${waColors[wa]||'transparent'};margin-right:6px"></span>`;
     const waBadge = `<div style="display:flex;align-items:center;font-size:12px">${waDot}<span style="color:${waColors[wa]||'var(--text2)'}">${waLabels[wa]||wa}</span></div>`;
+
+    // Numero a mostrar: el REAL conectado en Evolution gana al planeado en Supabase
+    const phoneActual = evo.phone || '';
+    const phonePlanned = (l.phone_number && !String(l.phone_number).includes('EDITAR')) ? l.phone_number : '';
+    const phoneShown = phoneActual || phonePlanned || '—';
+    const phoneMismatch = phoneActual && phonePlanned && phoneActual !== phonePlanned;
+    const phoneCell = phoneActual && !phonePlanned
+      ? `<span style="color:var(--blue)" title="Numero detectado en Evolution. Click Sync para guardarlo en Supabase">${phoneShown}</span>`
+      : phoneMismatch
+        ? `<span style="color:var(--amber)" title="Supabase dice ${phonePlanned}, pero Evolution tiene conectado ${phoneActual}">⚠️ ${phoneActual}</span>`
+        : phoneShown;
 
     // Acciones
     const pauseBtn = l.status === 'paused'
@@ -1836,7 +1854,7 @@ async function renderCampaign(){
     const devBtn = `<button onclick="openDeviceModal(${l.id}, '${(l.device_label||'').replace(/'/g,"\\'")}', '${l.instance_name}')" title="Asignar/cambiar celular" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);padding:2px 6px;font-size:11px;cursor:pointer;margin-left:4px">📱</button>`;
 
     return `<tr>
-      <td><strong>${l.instance_name}</strong><div style="font-size:11px;color:var(--text2)">${l.phone_number||'—'}</div></td>
+      <td><strong>${l.instance_name}</strong><div style="font-size:11px;color:var(--text2)">${phoneCell}</div></td>
       <td>${devLabel}${devBtn}</td>
       <td>${waBadge}</td>
       <td>${statusBadge}</td>
@@ -2066,6 +2084,55 @@ async function evoCall(action, instance){
 
 async function refreshEvolutionStates(){
   showToast('Refrescando conexiones…', 'ok');
+  await renderCampaign();
+}
+
+// Pisa el phone_number de Supabase con el numero realmente conectado en Evolution.
+// Solo actualiza las que estan en estado 'open' y tienen ownerJid.
+async function syncPhonesFromEvolution(){
+  showToast('Consultando Evolution…', 'ok');
+  let evoList = [];
+  try {
+    const r = await fetch(EVO_PROXY_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action:'states'})
+    });
+    if(!r.ok){ showToast('Error consultando Evolution', 'err'); return; }
+    const data = await r.json();
+    evoList = Array.isArray(data) ? data : (data.body || []);
+  } catch(e){
+    showToast('No se pudo conectar a Evolution', 'err'); return;
+  }
+
+  // Sacar pares (instance_name, real_phone) de las que estan open
+  const pairs = [];
+  evoList.forEach(it => {
+    const name = it.name || (it.instance && it.instance.instanceName);
+    const st   = it.connectionStatus || (it.instance && it.instance.state) || '';
+    const ownerJid = it.ownerJid || it.owner || (it.instance && (it.instance.owner || it.instance.ownerJid)) || '';
+    const phone = String(ownerJid).replace(/@.*$/, '').replace(/[^0-9]/g,'');
+    if(name && st === 'open' && phone) pairs.push({ name, phone });
+  });
+
+  if(pairs.length === 0){
+    showToast('No hay instancias conectadas para sincronizar', 'err');
+    return;
+  }
+
+  if(!confirm(`Voy a actualizar el phone_number de ${pairs.length} línea(s) en Supabase con lo que Evolution dice que está conectado.\n\n¿Confirmás?`)){
+    return;
+  }
+
+  let ok = 0, err = 0;
+  for(const p of pairs){
+    const res = await supa('wa_lines?instance_name=eq.'+encodeURIComponent(p.name), {
+      method:'PATCH',
+      body:{ phone_number: p.phone }
+    });
+    if(res !== null) ok++; else err++;
+  }
+  showToast(`Sync OK — ${ok} actualizadas` + (err ? `, ${err} con error` : ''), err ? 'err' : 'ok');
   await renderCampaign();
 }
 

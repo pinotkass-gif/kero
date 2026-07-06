@@ -706,6 +706,12 @@ function init(){
   setInterval(checkSystemStatus,45000);
   // Polling de respaldo muy suave (por si se cae el WebSocket)
   pollInterval=setInterval(loadAll,60000);
+  // Auto-refresh del tab Campaña cada 60s mientras esté abierto
+  // (antes solo se actualizaba tocando ↻ — te podías quedar mirando datos viejos)
+  setInterval(()=>{
+    const v=document.getElementById('view-campaign');
+    if(v&&v.classList.contains('active')&&!document.getElementById('qr-modal').classList.contains('open')) renderCampaign();
+  },60000);
 }
 
 function setupGlobalRealtime(){
@@ -776,14 +782,29 @@ window.addEventListener('load',function(){
   }catch(e){ try{sessionStorage.removeItem('kero_u');}catch(e2){} }
 });
 
+// Trae TODAS las filas paginando de a 1000 (Supabase capea cada query a 1000 —
+// sin esto, al pasar los 1000 contactos el CRM truncaría la lista en silencio).
+async function supaAll(base){
+  const out=[];const page=1000;let from=0;
+  while(from<20000){ // tope de seguridad
+    const sep=base.includes('?')?'&':'?';
+    const r=await supa(`${base}${sep}limit=${page}&offset=${from}`);
+    if(r===null) return out.length?out:null;
+    out.push(...r);
+    if(r.length<page) break;
+    from+=page;
+  }
+  return out;
+}
+
 async function loadAll(){
   let [c,cv]=await Promise.all([
-    supa('contacts?select=*&order=last_interaction.desc.nullslast'),
-    supa('conversations?select=*')
+    supaAll('contacts?select=*&order=last_interaction.desc.nullslast'),
+    supaAll('conversations?select=*')
   ]);
   // Fallback: if ordered query failed (null returned), try without ordering
-  if(!c) c=await supa('contacts?select=*');
-  if(!cv) cv=await supa('conversations?select=*');
+  if(!c) c=await supaAll('contacts?select=*');
+  if(!cv) cv=await supaAll('conversations?select=*');
   if(c){contacts=c;}
   if(cv){allConvs=cv;}
   const pending=(allConvs||[]).filter(x=>x.escalation_status==='pending');
@@ -959,6 +980,22 @@ async function runMsgDiag(){
     });
   }
   out.textContent=lines.join('\n');
+}
+
+// Escape HTML — TODO texto que venga de clientes (nombres de WhatsApp, mensajes)
+// pasa por acá antes de pintarse. Sin esto, un cliente con nombre "<img onerror=...>"
+// ejecuta código en el CRM (XSS almacenado).
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// Conteo exacto del lado del servidor (sin descargar filas).
+// Supabase capea las queries a 1000 filas — contar en el navegador MIENTE a escala.
+async function supaCount(path){
+  try{
+    const r=await fetch(SB+'/rest/v1/'+path,{headers:{apikey:SK,Authorization:'Bearer '+SK,Prefer:'count=exact','Range-Unit':'items',Range:'0-0'}});
+    const cr=r.headers.get('content-range')||'';
+    const total=parseInt(cr.split('/')[1]);
+    return isNaN(total)?0:total;
+  }catch(e){return 0;}
 }
 
 async function supa(path,opts={}){
@@ -1164,7 +1201,7 @@ function renderDashboard(){
   document.getElementById('activity-list').innerHTML=recent.length?recent.map(c=>{
     const mins=Math.round((Date.now()-new Date(c.last_interaction))/60000);
     const t=mins<60?`hace ${mins}m`:mins<1440?`hace ${Math.round(mins/60)}h`:`hace ${Math.round(mins/1440)}d`;
-    return`<div class="act-item"><div class="act-dot" style="background:${actColors[c.tag]||'var(--text2)'}"></div><div class="act-text"><strong>${c.name||c.phone}</strong> · ${c.tag||'sin tag'}</div><div class="act-time">${t}</div></div>`;
+    return`<div class="act-item"><div class="act-dot" style="background:${actColors[c.tag]||'var(--text2)'}"></div><div class="act-text"><strong>${esc(c.name||c.phone)}</strong> · ${esc(c.tag||'sin tag')}</div><div class="act-time">${t}</div></div>`;
   }).join(''):'<div style="color:var(--text2);font-size:13px">Sin actividad</div>';
 
   // calidad chart
@@ -1239,11 +1276,11 @@ function kanbanCard(cc){
   const t=mins<60?`hace ${mins}m`:mins<1440?`hace ${Math.round(mins/60)}h`:`hace ${Math.round(mins/1440)}d`;
   return`<div class="kanban-card" draggable="true" data-conv-id="${cc.id}" onclick="openChatFromFunnel('${cc.id}')"
     ondragstart="event.dataTransfer.setData('convId','${cc.id}')">
-    <div class="card-name">${c.name||c.phone||'Sin nombre'}</div>
-    <div class="card-phone">${c.phone||''}</div>
+    <div class="card-name">${esc(c.name||c.phone||'Sin nombre')}</div>
+    <div class="card-phone">${esc(c.phone||'')}</div>
     <div class="card-tags">
       <span class="pill ${qualityPill[q]}">${qualityLabel[q]}</span>
-      ${c.tag?`<span class="pill pill-new" style="font-size:10px">${c.tag}</span>`:''}
+      ${c.tag?`<span class="pill pill-new" style="font-size:10px">${esc(c.tag)}</span>`:''}
     </div>
     ${c.total_loaded?`<div class="card-amount">$${Number(c.total_loaded).toLocaleString('es-AR')}</div>`:''}
     <div class="card-time">${t}</div>
@@ -1335,8 +1372,8 @@ function filterChatList(){
     return`<div class="contact-row${sel}${alertCls}" onclick="openChatByContact('${c.id}')">
       <div class="cr-avatar" style="background:${avatarColor(c.name||c.phone)}">${initials(c.name||c.phone)}</div>
       <div class="cr-info">
-        <div class="cr-name">${c.name||c.phone||'Sin nombre'}</div>
-        <div class="cr-last">${c.last_message||'Sin mensajes'}</div>
+        <div class="cr-name">${esc(c.name||c.phone||'Sin nombre')}</div>
+        <div class="cr-last">${esc(c.last_message||'Sin mensajes')}</div>
         <div class="cr-badges">
           <span class="pill ${qualityPill[q2]}" style="font-size:10px;padding:1px 6px">${qualityLabel[q2]}</span>
           ${hasAlert?`<span class="pill pill-withdrawal" style="font-size:10px;padding:1px 6px">Alerta</span>`:''}
@@ -1381,8 +1418,8 @@ function renderChatPanel(conv){
       <div class="chat-contact-info">
         <div class="chat-avatar" style="background:${color};color:#fff">${initials(c.name||c.phone)}</div>
         <div>
-          <div class="chat-name">${c.name||'Sin nombre'} <span class="pill ${qualityPill[q]}" style="font-size:11px;vertical-align:middle">${qualityLabel[q]}</span></div>
-          <div class="chat-phone">${c.phone||''} · ${c.canal||'WhatsApp'}</div>
+          <div class="chat-name">${esc(c.name||'Sin nombre')} <span class="pill ${qualityPill[q]}" style="font-size:11px;vertical-align:middle">${qualityLabel[q]}</span></div>
+          <div class="chat-phone">${esc(c.phone||'')} · ${esc(c.canal||'WhatsApp')}</div>
         </div>
       </div>
       <div class="chat-actions">
@@ -1405,7 +1442,7 @@ function _msgHTML(m){
   const byClass={teresa:'teresa',human:'human'}[m.sent_by]||'';
   const t=m.timestamp?new Date(m.timestamp).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'';
   const idAttr=m.id?` data-mid="${m.id}"`:'';
-  return`<div class="msg ${dir}"${idAttr}>${(m.body||'').replace(/</g,'&lt;')}<div class="msg-meta"><span class="sent-by ${byClass}">${byLabel}</span>${t?' · '+t:''}</div></div>`;
+  return`<div class="msg ${dir}"${idAttr}>${esc(m.body||'')}<div class="msg-meta"><span class="sent-by ${byClass}">${esc(byLabel)}</span>${t?' · '+t:''}</div></div>`;
 }
 
 // Render incremental: agrega UN mensaje nuevo al DOM (llamado por realtime o send optimista)
@@ -1641,7 +1678,7 @@ function renderContacts(){
     return`<tr onclick="openContactModal('${c.id}')">
       <td><div style="display:flex;align-items:center;gap:10px">
         <div style="width:30px;height:30px;border-radius:50%;background:${avatarColor(c.name||c.phone)};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#fff;flex-shrink:0">${initials(c.name||c.phone)}</div>
-        <span style="color:var(--text)">${c.name||'<span style="color:var(--text2)">Sin nombre</span>'}</span>
+        <span style="color:var(--text)">${c.name?esc(c.name):'<span style="color:var(--text2)">Sin nombre</span>'}</span>
       </div></td>
       <td><span class="pill ${qualityPill[q]}">${qualityLabel[q]}</span></td>
       <td>${c.phone||'—'}</td>
@@ -1717,8 +1754,42 @@ function showToast(msg,type='ok'){
 
 // ── CAMPAÑA RECONTACTO ──
 async function renderCampaign(){
+  // ── Todas las queries independientes salen EN PARALELO (antes: fila india, 3-4x más lento) ──
+  const _today = new Date().toISOString().slice(0,10);
+  const _evoStatesPromise = (async()=>{
+    const m = {};
+    try {
+      const evoRes = await fetch(EVO_PROXY_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({action:'states', token:'kero-evo-9247'})
+      });
+      if(evoRes.ok){
+        const arr = await evoRes.json();
+        const list = Array.isArray(arr) ? arr : (arr.instances || arr.body || []);
+        list.forEach(it => {
+          const name = it.name || (it.instance && it.instance.instanceName);
+          const st = it.connectionStatus || (it.instance && it.instance.state) || 'unknown';
+          // owner / ownerJid puede venir en distintos lugares segun version de Evolution
+          const ownerJid = it.ownerJid || it.owner || (it.instance && (it.instance.owner || it.instance.ownerJid)) || '';
+          const ownerPhone = String(ownerJid).replace(/@.*$/, '').replace(/[^0-9]/g,'');
+          if(name) m[name] = { state: st, phone: ownerPhone };
+        });
+      }
+    } catch(e){ console.warn('No se pudo consultar Evolution', e); }
+    return m;
+  })();
+  const [cfg, funnel, prog, todayCount, lines, recent, evoStates] = await Promise.all([
+    supa('system_config?key=eq.campaign_active&select=value'),
+    supa('v_funnel_teresa?select=*'),
+    supa('v_campaign_progress?select=*').then(r=>r||[]),
+    supaCount('campaign_sends?select=id&sent_at=gte.'+_today+'T00:00:00'),
+    supa('v_lines_health?select=*').then(r=>r||[]),
+    supa('broadcast_inbound?select=from_phone,message_text,classified_as,received_at&order=received_at.desc&limit=8').then(r=>r||[]),
+    _evoStatesPromise
+  ]);
+
   // 1) Estado de la campaña (activa/pausada)
-  const cfg = await supa('system_config?key=eq.campaign_active&select=value');
   const active = cfg && cfg[0] && cfg[0].value === 'true';
   const tBtn = document.getElementById('camp-toggle-btn');
   const tLine = document.getElementById('camp-status-line');
@@ -1734,8 +1805,7 @@ async function renderCampaign(){
     tLine.style.color = active ? 'var(--green)' : 'var(--red)';
   }
 
-  // 2) Embudo global
-  const funnel = await supa('v_funnel_teresa?select=*');
+  // 2) Embudo global (ya traído en paralelo arriba)
   const f = funnel && funnel[0] || {};
   const fSteps = [
     {label:'T1 enviado',         val: f.toque1_enviado || 0},
@@ -1753,11 +1823,9 @@ async function renderCampaign(){
   }).join('');
   document.getElementById('camp-funnel').innerHTML = fHtml;
 
-  // 3) Progreso por cohorte
-  const prog = await supa('v_campaign_progress?select=*') || [];
+  // 3) Progreso por cohorte (prog y todayCount ya traídos en paralelo;
+  //    todayCount usa count=exact del server — contar filas descargadas mentía a escala)
   const totalSent = (f.toque1_enviado||0) + (f.toque2_enviado||0) + (f.toque3_enviado||0);
-  const sendsToday = await supa('campaign_sends?select=id&sent_at=gte.'+(new Date().toISOString().slice(0,10))+'T00:00:00');
-  const todayCount = (sendsToday && sendsToday.length) || 0;
   document.getElementById('camp-sent').textContent = totalSent.toLocaleString();
   document.getElementById('camp-sent-sub').textContent = todayCount.toLocaleString()+' hoy';
   const derivedTotal = f.derivado_a_teresa || 0;
@@ -1784,30 +1852,7 @@ async function renderCampaign(){
   const burned = prog.reduce((s,r)=>s+(r.burned||0),0);
   document.getElementById('camp-burned').textContent = burned.toLocaleString();
 
-  // 4) Salud líneas + estado WhatsApp (Evolution)
-  const lines = await supa('v_lines_health?select=*') || [];
-  // Traer estado + numero real conectado de Evolution via n8n proxy
-  let evoStates = {};
-  try {
-    const evoRes = await fetch(EVO_PROXY_URL, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'states'})
-    });
-    if(evoRes.ok){
-      const arr = await evoRes.json();
-      const list = Array.isArray(arr) ? arr : (arr.instances || arr.body || []);
-      list.forEach(it => {
-        const name = it.name || (it.instance && it.instance.instanceName);
-        const st = it.connectionStatus || (it.instance && it.instance.state) || 'unknown';
-        // owner / ownerJid puede venir en distintos lugares segun version de Evolution
-        const ownerJid = it.ownerJid || it.owner || (it.instance && (it.instance.owner || it.instance.ownerJid)) || '';
-        const ownerPhone = String(ownerJid).replace(/@.*$/, '').replace(/[^0-9]/g,'');
-        if(name) evoStates[name] = { state: st, phone: ownerPhone };
-      });
-    }
-  } catch(e){ console.warn('No se pudo consultar Evolution', e); }
-
+  // 4) Salud líneas + estado WhatsApp (lines y evoStates ya traídos en paralelo arriba)
   const linesHtml = lines.map(l=>{
     const ratio = l.ratio_in_out_pct;
     let ratioColor = 'var(--text)';
@@ -1865,7 +1910,10 @@ async function renderCampaign(){
       } else {
         flameFilter='hue-rotate(-22deg) saturate(1.5)'; txtColor='#f87171';      label=`${d}/14`;  tip='Recién empieza a calentar';
       }
-      warmCell = `<span title="${tip}" style="color:${txtColor};font-weight:700;white-space:nowrap"><span style="filter:${flameFilter};display:inline-block">🔥</span> ${label}</span>`;
+      // Contador de mensajes de warming enviados HOY (cross-talk automático)
+      const wSent = l.warming_sent_today || 0;
+      const wCount = `<span title="Mensajes de calentamiento enviados hoy" style="font-size:10px;color:var(--text2);font-weight:400"> · ${wSent} hoy</span>`;
+      warmCell = `<span title="${tip}" style="color:${txtColor};font-weight:700;white-space:nowrap"><span style="filter:${flameFilter};display:inline-block">🔥</span> ${label}${wCount}</span>`;
     } else if(l.status === 'active'){
       warmCell = `<span title="En campaña" style="color:var(--green);font-size:11px">en campaña</span>`;
     }
@@ -1892,24 +1940,22 @@ async function renderCampaign(){
   }).join('');
   document.getElementById('camp-lines-tbody').innerHTML = linesHtml || '<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--text2)">Sin líneas cargadas</td></tr>';
 
-  // 5) A/B test por variante (1 query agregada con count)
-  for(const touch of [1,2,3]){
+  // 5) A/B test por variante — conteos EXACTOS del lado del servidor.
+  //    (Antes descargaba las filas y contaba en el navegador: Supabase capea a
+  //    1000 filas por query → los porcentajes MENTÍAN silenciosamente a escala.)
+  //    Los 3 toques y sus 18 conteos salen todos en paralelo.
+  await Promise.all([1,2,3].map(async touch=>{
     const sentCol = `t${touch}_sent_at`;
     const variantCol = `variant_t${touch}`;
-    // Query: traer respondidos y enviados por variante
-    const all = await supa(`campaign_recipients?select=${variantCol},${sentCol},responded_at&${sentCol}=not.is.null`);
-    if(!all){ continue; }
-    const buckets = {A:{sent:0,resp:0}, B:{sent:0,resp:0}, C:{sent:0,resp:0}};
-    all.forEach(r=>{
-      const v = r[variantCol];
-      if(!buckets[v]) return;
-      buckets[v].sent++;
-      if(r.responded_at) buckets[v].resp++;
-    });
+    const counts = await Promise.all(['A','B','C'].flatMap(v=>[
+      supaCount(`campaign_recipients?select=id&${sentCol}=not.is.null&${variantCol}=eq.${v}`),
+      supaCount(`campaign_recipients?select=id&${sentCol}=not.is.null&${variantCol}=eq.${v}&responded_at=not.is.null`)
+    ]));
+    const buckets = {A:{sent:counts[0],resp:counts[1]}, B:{sent:counts[2],resp:counts[3]}, C:{sent:counts[4],resp:counts[5]}};
     const total = buckets.A.sent + buckets.B.sent + buckets.C.sent;
     if(total === 0){
       document.getElementById('camp-ab-t'+touch).innerHTML = '<div class="lp" style="color:var(--text2);font-size:13px">Sin datos aún</div>';
-      continue;
+      return;
     }
     const max = Math.max(1, ...['A','B','C'].map(v=>buckets[v].sent>0 ? (buckets[v].resp/buckets[v].sent)*100 : 0));
     const html = ['A','B','C'].map(v=>{
@@ -1924,10 +1970,9 @@ async function renderCampaign(){
       </div>`;
     }).join('');
     document.getElementById('camp-ab-t'+touch).innerHTML = html;
-  }
+  }));
 
-  // 6) Últimas respuestas
-  const recent = await supa('broadcast_inbound?select=from_phone,message_text,classified_as,received_at&order=received_at.desc&limit=8') || [];
+  // 6) Últimas respuestas (ya traídas en paralelo arriba)
   if(recent.length === 0){
     document.getElementById('camp-recent').innerHTML = '<div class="lp" style="color:var(--text2);font-size:13px">Sin respuestas todavía</div>';
   } else {
@@ -1937,7 +1982,7 @@ async function renderCampaign(){
       const ago = _agoStr(t);
       return `<div class="act-item">
         <div class="act-dot" style="background:${color}"></div>
-        <div class="act-text"><strong>${r.from_phone}</strong> · ${(r.message_text||'').slice(0,40)}</div>
+        <div class="act-text"><strong>${esc(r.from_phone)}</strong> · ${esc((r.message_text||'').slice(0,40))}</div>
         <div class="act-time">${ago}</div>
       </div>`;
     }).join('');
@@ -2110,7 +2155,7 @@ async function evoCall(action, instance){
     const r = await fetch(EVO_PROXY_URL, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action, instance})
+      body: JSON.stringify({action, instance, token:'kero-evo-9247'})
     });
     if(!r.ok) return null;
     return await r.json();
@@ -2134,7 +2179,7 @@ async function syncPhonesFromEvolution(){
     const r = await fetch(EVO_PROXY_URL, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({action:'states'})
+      body: JSON.stringify({action:'states', token:'kero-evo-9247'})
     });
     if(!r.ok){ showToast('Error consultando Evolution', 'err'); return; }
     const data = await r.json();

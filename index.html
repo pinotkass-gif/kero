@@ -628,10 +628,10 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
 <script>
 const SB='https://hvvigvhiizuzxxkagdmr.supabase.co';
 const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2dmlndmhpaXp1enh4a2FnZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzE2MTQsImV4cCI6MjA5MTQwNzYxNH0.8SDsHZO4smgw5hghXiLbxrGY3TlzaJErjM_VnM15OHs';
-const EV_URL='https://89.127.234.93.sslip.io';
+const EV_URL='https://23.95.188.45.sslip.io';
 const EV_KEY='argenbet2024secretkey';
 const EV_INST='argenbet-bot';
-const N8N_HEALTH='https://89.127.234.93.sslip.io/n8n-health/healthz';
+const N8N_HEALTH='https://23.95.188.45.sslip.io/n8n-health/healthz';
 
 // Cliente Supabase con Realtime (WebSocket)
 const _sbClient=(window.supabase&&window.supabase.createClient)
@@ -2102,8 +2102,8 @@ async function clearDevice(){
 
 // ── EVOLUTION PROXY (vía n8n, expuesto por Caddy HTTPS) ──
 // Esta URL apunta a /n8n-proxy en Caddy → reverse_proxy a localhost:5678 (n8n)
-// Si todavía no configuraste Caddy, usar http://89.127.234.93:5678/webhook/evo-proxy
-const EVO_PROXY_URL = 'https://89.127.234.93.sslip.io/n8n-proxy/webhook/evo-proxy';
+// Si todavía no configuraste Caddy, usar http://23.95.188.45:5678/webhook/evo-proxy
+const EVO_PROXY_URL = 'https://23.95.188.45.sslip.io/n8n-proxy/webhook/evo-proxy';
 
 async function evoCall(action, instance){
   try {

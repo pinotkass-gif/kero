@@ -418,7 +418,7 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
       <div class="section-label" style="margin-top:0">KPIs principales</div>
       <div class="kpi-grid" id="camp-kpis">
         <div class="kpi-card"><div class="kpi-val ca" id="camp-sent">—</div><div class="kpi-lbl">Mensajes enviados</div><div class="kpi-sub" id="camp-sent-sub">—</div></div>
-        <div class="kpi-card"><div class="kpi-val cg" id="camp-derived">—</div><div class="kpi-lbl">Derivados a Teresa</div><div class="kpi-sub" id="camp-derived-sub">—</div></div>
+        <div class="kpi-card"><div class="kpi-val cg" id="camp-derived">—</div><div class="kpi-lbl">Derivados al bot</div><div class="kpi-sub" id="camp-derived-sub">—</div></div>
         <div class="kpi-card"><div class="kpi-val cam" id="camp-response">—</div><div class="kpi-lbl">Tasa respuesta</div><div class="kpi-sub">sobre T1 enviados</div></div>
         <div class="kpi-card"><div class="kpi-val cr" id="camp-optout">—</div><div class="kpi-lbl">Opt-out rate</div><div class="kpi-sub">objetivo &lt; 3%</div></div>
       </div>
@@ -626,28 +626,71 @@ tbody tr:hover td{background:var(--bg2);color:var(--text);cursor:pointer}
 <!-- Supabase JS (Realtime) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-const SB='https://hvvigvhiizuzxxkagdmr.supabase.co';
-const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2dmlndmhpaXp1enh4a2FnZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzE2MTQsImV4cCI6MjA5MTQwNzYxNH0.8SDsHZO4smgw5hghXiLbxrGY3TlzaJErjM_VnM15OHs';
-const EV_URL='https://23.95.188.45.sslip.io';
-const EV_KEY='argenbet2024secretkey';
-const EV_INST='argenbet-bot';
-const N8N_HEALTH='https://23.95.188.45.sslip.io/n8n-health/healthz';
+/* ═══════════════════════════════════════════════════════════════════════
+   CONFIGURACIÓN — editá SOLO este bloque para montar una instancia nueva.
+   Todo lo de marca, conexiones y usuarios vive acá. El resto del código
+   toma estos valores; no hace falta tocar nada más abajo.
+   ═══════════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  // ── Marca (lo que ve el usuario) ──
+  brand: {
+    name:    'KERO',                  // logo del login y de la barra superior
+    tagline: 'Panel de operaciones',  // subtítulo del login
+    botName: 'Asistente',             // nombre del bot en la interfaz (NO toca la base de datos)
+  },
+  // ── Supabase (base de datos + Realtime) ──
+  supabaseUrl:     'https://hvvigvhiizuzxxkagdmr.supabase.co',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2dmlndmhpaXp1enh4a2FnZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzE2MTQsImV4cCI6MjA5MTQwNzYxNH0.8SDsHZO4smgw5hghXiLbxrGY3TlzaJErjM_VnM15OHs',
+  // ── Evolution API (WhatsApp) ──
+  evolutionUrl:      'https://23.95.188.45.sslip.io',
+  evolutionKey:      'argenbet2024secretkey',
+  evolutionInstance: 'argenbet-bot',
+  botInstancePrefix: 'ganamos-bot-',   // prefijo de las líneas de campaña en Evolution
+  // ── Salud de n8n ──
+  n8nHealthUrl: 'https://23.95.188.45.sslip.io/n8n-health/healthz',
+  // ── Seguridad ──
+  // Poné true SOLO después de aplicar seguridad_rls.sql y crear los usuarios de
+  // Supabase Auth. Con true, cada request usa el token de sesión (no la anon key)
+  // y sin login válido no se lee nada. Con false, funciona como siempre.
+  requireSupabaseAuth: true,
+  sessionSalt: 'kero-crm-v1-2026',    // sal del hash de contraseñas del panel
+  sessionMaxHours: 12,                // cierra sesión automáticamente tras N horas
+};
 
-// Cliente Supabase con Realtime (WebSocket)
+// Usuarios del panel. Contraseñas guardadas como hash SHA-256 (sin texto plano).
+// Para cambiar/agregar: abrí la consola del navegador (F12) y corré:
+//   await _hashPass('nombreusuario','laclave')   → pegá el hash resultante acá.
+const USERS = {
+  'kero':   {hash:'0ba49d9c16b934e1d7f3f124311222aa9f2c169cc258cebd1ee5e7add81cab10', role:'admin', display:'Kero'},
+  'rocio':  {hash:'c9c6de3caab25cdf711a0b4f694c75cd7d0b7b13ffb430935bb4f40796eebbb4', role:'agent', display:'Rocío'},
+  'jazmin': {hash:'2630045828c9b7c3ef6eaa71bd0175da52bb5aeb46ae621ff64e52044dee94b1', role:'agent', display:'Jazmín'},
+  'solci':  {hash:'2cc3ff6526fc87cfd5ac04b14670b9c39d0b1462ef0c493d011726ed78986d33', role:'agent', display:'Solci'},
+};
+
+/* ═══════════════ fin de la configuración editable ═══════════════ */
+
+// Alias que usa el resto del código (no editar)
+const SB=CONFIG.supabaseUrl, SK=CONFIG.supabaseAnonKey;
+const EV_URL=CONFIG.evolutionUrl, EV_KEY=CONFIG.evolutionKey, EV_INST=CONFIG.evolutionInstance;
+const N8N_HEALTH=CONFIG.n8nHealthUrl;
+const BRAND=CONFIG.brand;
+
+// Cliente Supabase con Realtime (WebSocket) + persistencia de sesión (para Auth)
 const _sbClient=(window.supabase&&window.supabase.createClient)
-  ? window.supabase.createClient(SB,SK,{realtime:{params:{eventsPerSecond:20}}})
+  ? window.supabase.createClient(SB,SK,{realtime:{params:{eventsPerSecond:20}},auth:{persistSession:true,storageKey:'kero_sb_auth',autoRefreshToken:true}})
   : null;
 let _globalChannel=null;   // canal global: contacts + conversations
 let _msgChannel=null;      // canal por-conversación: messages
 let _currentConvId=null;   // conv abierta
 let _renderedMsgIds=new Set(); // ids ya pintados en el panel
 
-const USERS={
-  'kero':{pass:'Koko3482.',role:'admin',display:'Kero'},
-  'rocio':{pass:'Rocio2026',role:'agent',display:'Rocío'},
-  'jazmin':{pass:'Jazmin2026',role:'agent',display:'Jazmín'},
-  'solci':{pass:'Solci2026',role:'agent',display:'Solci'},
-};
+// Hash SHA-256 de contraseña (sal + usuario + clave) — usado por el login
+async function _hashPass(user,pass){
+  const enc=new TextEncoder().encode(CONFIG.sessionSalt+':'+String(user).toLowerCase()+':'+pass);
+  const buf=await crypto.subtle.digest('SHA-256',enc);
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+window._hashPass=_hashPass; // disponible en consola para generar hashes nuevos
 
 // Calidad de cliente
 function clientQuality(c){
@@ -667,14 +710,28 @@ let sortKey='last_interaction',sortDir=-1;
 let selectedContactId=null,selectedConv=null;
 let pollInterval=null,msgPollInterval=null,currentPeriod='hoy',currentFunnel='retiros';
 
-function doLogin(){
+async function doLogin(){
   const u=document.getElementById('login-user').value.trim().toLowerCase();
   const p=document.getElementById('login-pass').value;
   const err=document.getElementById('login-error');
-  if(USERS[u]&&USERS[u].pass===p){
-    currentUser={username:u,...USERS[u]};
+  const btn=document.querySelector('.login-btn');
+  const rec=USERS[u];
+  // 1) Gate del panel: comparación por hash (sin texto plano en el archivo)
+  let ok=false;
+  if(rec&&p){ try{ ok=(await _hashPass(u,p))===rec.hash; }catch(e){ ok=false; } }
+  // 2) Seguridad real (opcional): autenticar contra Supabase Auth
+  if(ok&&CONFIG.requireSupabaseAuth&&_sbClient){
+    if(btn){ btn.disabled=true; btn.textContent='Verificando...'; }
+    try{
+      const {error}=await _sbClient.auth.signInWithPassword({email:u+'@kero.crm',password:p});
+      if(error) ok=false;
+    }catch(e){ ok=false; }
+    if(btn){ btn.disabled=false; btn.textContent='Ingresar'; }
+  }
+  if(ok){
+    currentUser={username:u,role:rec.role,display:rec.display};
     err.style.display='none';
-    try{ sessionStorage.setItem('kero_u',u); sessionStorage.setItem('kero_view','chats'); }catch(e){}
+    try{ sessionStorage.setItem('kero_u',u); sessionStorage.setItem('kero_view','chats'); sessionStorage.setItem('kero_login_at',String(Date.now())); }catch(e){}
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='flex';
     document.getElementById('user-chip').textContent=currentUser.display;
@@ -689,7 +746,8 @@ function doLogout(){
   try{ if(_sbClient){ if(_globalChannel)_sbClient.removeChannel(_globalChannel); if(_msgChannel)_sbClient.removeChannel(_msgChannel);} }catch(e){}
   _globalChannel=null; _msgChannel=null; _currentConvId=null; _renderedMsgIds.clear();
   currentUser=null;
-  try{ sessionStorage.removeItem('kero_u'); sessionStorage.removeItem('kero_view'); }catch(e){}
+  try{ if(_sbClient&&CONFIG.requireSupabaseAuth) _sbClient.auth.signOut(); }catch(e){}
+  try{ sessionStorage.removeItem('kero_u'); sessionStorage.removeItem('kero_view'); sessionStorage.removeItem('kero_login_at'); }catch(e){}
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('app').style.display='none';
   document.getElementById('login-user').value='';
@@ -746,8 +804,19 @@ function setupGlobalRealtime(){
       if(badge){ badge.textContent=pending.length; badge.style.display=pending.length>0?'':'none'; }
       refreshActiveView();
     })
-    .subscribe((status)=>{ setLiveStatus(status==='SUBSCRIBED'); });
+    .subscribe((status)=>{
+      setLiveStatus(status==='SUBSCRIBED');
+      // Reconexión: si el canal se cae, reintentar con backoff (hasta ~30s)
+      if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+        if(currentUser){
+          _globalRetry=Math.min((_globalRetry||0)+1,6);
+          clearTimeout(_globalReconnectT);
+          _globalReconnectT=setTimeout(()=>{ if(currentUser){ setupGlobalRealtime(); loadAll(); } }, Math.min(2000*_globalRetry,30000));
+        }
+      } else if(status==='SUBSCRIBED'){ _globalRetry=0; }
+    });
 }
+let _globalRetry=0,_globalReconnectT=null;
 
 function refreshActiveView(){
   const active=document.querySelector('.view.active');
@@ -765,19 +834,35 @@ function setLiveStatus(ok){
   el.title=ok?'En vivo (Realtime conectado)':'Reconectando...';
 }
 
+function applyBrand(){
+  try{
+    document.title=BRAND.name+' · CRM';
+    document.querySelectorAll('.login-logo,.topbar-logo').forEach(e=>e.textContent=BRAND.name);
+    const sub=document.querySelector('.login-sub'); if(sub) sub.textContent=BRAND.tagline;
+  }catch(e){}
+}
+
 window.addEventListener('load',function(){
+  applyBrand();
   try{
     const u=sessionStorage.getItem('kero_u');
-    if(u&&USERS[u]&&!currentUser){
-      currentUser={username:u,...USERS[u]};
+    // Expiración de sesión: si pasaron más de sessionMaxHours, obligar re-login
+    const loginAt=parseInt(sessionStorage.getItem('kero_login_at')||'0',10);
+    const expirada=loginAt&&(Date.now()-loginAt)>CONFIG.sessionMaxHours*3600*1000;
+    if(u&&USERS[u]&&!currentUser&&!expirada){
+      const rec=USERS[u];
+      currentUser={username:u,role:rec.role,display:rec.display};
       document.getElementById('login-screen').style.display='none';
       document.getElementById('app').style.display='flex';
       document.getElementById('user-chip').textContent=currentUser.display;
       const expBtn=document.getElementById('export-btn');
       if(expBtn) expBtn.style.display=currentUser.role==='admin'?'':'none';
+      document.querySelectorAll('.admin-only').forEach(el=>{el.style.display=currentUser.role==='admin'?'':'none';});
       init();
       const v=sessionStorage.getItem('kero_view')||'chats';
       setTimeout(()=>showView(v),600);
+    } else if(expirada){
+      try{ sessionStorage.removeItem('kero_u'); sessionStorage.removeItem('kero_login_at'); }catch(e2){}
     }
   }catch(e){ try{sessionStorage.removeItem('kero_u');}catch(e2){} }
 });
@@ -1000,8 +1085,13 @@ async function supaCount(path){
 
 async function supa(path,opts={}){
   try{
+    // Con Auth activado usamos el token de la sesión (no la anon key) → sin login no se lee nada
+    let bearer=SK;
+    if(CONFIG.requireSupabaseAuth&&_sbClient){
+      try{ const {data}=await _sbClient.auth.getSession(); if(data?.session?.access_token) bearer=data.session.access_token; }catch(e){}
+    }
     const res=await fetch(SB+'/rest/v1/'+path,{
-      headers:{'apikey':SK,'Authorization':'Bearer '+SK,'Content-Type':'application/json','Prefer':opts.prefer||'return=representation',...(opts.headers||{})},
+      headers:{'apikey':SK,'Authorization':'Bearer '+bearer,'Content-Type':'application/json','Prefer':opts.prefer||'return=representation',...(opts.headers||{})},
       method:opts.method||'GET',body:opts.body?JSON.stringify(opts.body):undefined
     });
     window._supaDebug.lastPath=path;
@@ -1317,8 +1407,8 @@ function subscribeToConversation(convId){
   _currentConvId=convId;
   const cid=selectedConv?.contact_id||selectedConv?.contacts?.id||selectedContactId;
   clearInterval(msgPollInterval);
-  // Respaldo suave por si cae el WebSocket: refresca cada 15s
-  msgPollInterval=setInterval(()=>{ if(_currentConvId===convId) loadMessages(convId); },15000);
+  // Respaldo suave por si cae el WebSocket: refresca cada 6s (query ~250ms, tabla chica)
+  msgPollInterval=setInterval(()=>{ if(_currentConvId===convId) loadMessages(convId); },6000);
   if(!_sbClient) return;
   try{ if(_msgChannel) _sbClient.removeChannel(_msgChannel); }catch(e){}
   const ch=_sbClient.channel('kero-msgs-'+convId);
@@ -1349,7 +1439,16 @@ function subscribeToConversation(convId){
             updateMessageDOM(m);
           });
   }
-  ch.subscribe();
+  ch.subscribe((status)=>{
+    // Al quedar SUBSCRIBED hay una ventana de ~1s donde el server todavía no
+    // enruta los INSERT: si entra un mensaje justo ahí, se pierde y recién
+    // aparecería en el poll de respaldo. Re-fetch una vez para cerrar ese hueco.
+    if(status==='SUBSCRIBED' && _currentConvId===convId) loadMessages(convId);
+    // Si el canal del chat se cae, re-suscribir mientras siga abierto ese chat
+    else if((status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED') && _currentConvId===convId){
+      setTimeout(()=>{ if(_currentConvId===convId) subscribeToConversation(convId); },2500);
+    }
+  });
   _msgChannel=ch;
 }
 
@@ -1423,14 +1522,14 @@ function renderChatPanel(conv){
         </div>
       </div>
       <div class="chat-actions">
-        <span class="teresa-badge ${paused?'paused':'active'}">Teresa ${paused?'pausada':'activa'}</span>
-        ${paused?`<button class="action-btn success" onclick="toggleTeresa('${conv.id}',false)">Devolver a Teresa</button>`:`<button class="action-btn danger" onclick="toggleTeresa('${conv.id}',true)">Tomar control</button>`}
+        <span class="teresa-badge ${paused?'paused':'active'}">${BRAND.botName} ${paused?'pausado':'activo'}</span>
+        ${paused?`<button class="action-btn success" onclick="toggleTeresa('${conv.id}',false)">Devolver al bot</button>`:`<button class="action-btn danger" onclick="toggleTeresa('${conv.id}',true)">Tomar control</button>`}
         ${conv.escalation_status==='pending'?`<button class="action-btn" onclick="resolveAlert('${conv.id}')">Resolver alerta</button>`:''}
         <button class="action-btn" onclick="openContactModal('${c.id}')">Ver ficha</button>
       </div>
     </div>
     <div class="messages-area" id="messages-area"><div class="empty-state lp">Cargando...</div></div>
-    ${paused?`<div class="chat-input-area"><textarea id="msg-input" placeholder="Escribí tu mensaje..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage('${conv.id}','${c.phone}')}"></textarea><button class="send-btn" onclick="sendMessage('${conv.id}','${c.phone}')">Enviar</button></div>`:`<div class="chat-blocked">Teresa está manejando este chat. Hacé click en "Tomar control" para responder.</div>`}
+    ${paused?`<div class="chat-input-area"><textarea id="msg-input" placeholder="Escribí tu mensaje..." rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage('${conv.id}','${c.phone}')}"></textarea><button class="send-btn" onclick="sendMessage('${conv.id}','${c.phone}')">Enviar</button></div>`:`<div class="chat-blocked">${BRAND.botName} está manejando este chat. Hacé click en "Tomar control" para responder.</div>`}
   `;
 }
 
@@ -1438,7 +1537,7 @@ let _lastMsgSig=null;
 
 function _msgHTML(m){
   const dir=m.direction==='out'?'out':'in';
-  const byLabel={teresa:'Teresa',user:'Cliente',human:currentUser?.display||'Agente',system:'Sistema'}[m.sent_by]||m.sent_by||'';
+  const byLabel={teresa:BRAND.botName,user:'Cliente',human:currentUser?.display||'Agente',system:'Sistema'}[m.sent_by]||m.sent_by||'';
   const byClass={teresa:'teresa',human:'human'}[m.sent_by]||'';
   const t=m.timestamp?new Date(m.timestamp).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'';
   const idAttr=m.id?` data-mid="${m.id}"`:'';
@@ -1611,7 +1710,7 @@ async function sendMessage(convId,phone){
 
 async function toggleTeresa(convId,pause){
   await supa(`conversations?id=eq.${convId}`,{method:'PATCH',body:{teresa_paused:pause}});
-  showToast(pause?'Teresa pausada':'Teresa reactivada','ok');
+  showToast(pause?BRAND.botName+' pausado':BRAND.botName+' reactivado','ok');
   const data=await supa(`conversations?id=eq.${convId}&select=*,contacts(*)&limit=1`);
   if(data&&data.length){selectedConv=data[0];renderChatPanel(selectedConv);loadMessages(convId);}
 }
@@ -1812,8 +1911,8 @@ async function renderCampaign(){
     {label:'T2 enviado',         val: f.toque2_enviado || 0},
     {label:'T3 enviado',         val: f.toque3_enviado || 0},
     {label:'Respondió',          val: f.respondio_difusion || 0},
-    {label:'Derivado a Teresa',  val: f.derivado_a_teresa || 0},
-    {label:'Llegó a Teresa',     val: f.llego_a_teresa || 0},
+    {label:'Derivado al bot',    val: f.derivado_a_teresa || 0},
+    {label:'Llegó al bot',       val: f.llego_a_teresa || 0},
     {label:'Cargó o pidió CBU',  val: f.cargo_o_pidio_cbu || 0}
   ];
   const fMax = Math.max(1, ...fSteps.map(s=>s.val));
@@ -1831,7 +1930,7 @@ async function renderCampaign(){
   const derivedTotal = f.derivado_a_teresa || 0;
   const reached = f.llego_a_teresa || 0;
   document.getElementById('camp-derived').textContent = derivedTotal.toLocaleString();
-  document.getElementById('camp-derived-sub').textContent = reached.toLocaleString()+' llegaron a Teresa';
+  document.getElementById('camp-derived-sub').textContent = reached.toLocaleString()+' llegaron al bot';
   const t1 = f.toque1_enviado || 0;
   const resp = f.respondio_difusion || 0;
   const rPct = t1 > 0 ? ((resp/t1)*100).toFixed(1)+'%' : '—';
@@ -2195,7 +2294,7 @@ async function syncPhonesFromEvolution(){
     const st   = it.connectionStatus || (it.instance && it.instance.state) || '';
     const ownerJid = it.ownerJid || it.owner || (it.instance && (it.instance.owner || it.instance.ownerJid)) || '';
     const phone = String(ownerJid).replace(/@.*$/, '').replace(/[^0-9]/g,'');
-    if(name && name.startsWith('ganamos-bot-') && st === 'open' && phone) pairs.push({ name, phone });
+    if(name && name.startsWith(CONFIG.botInstancePrefix) && st === 'open' && phone) pairs.push({ name, phone });
   });
 
   if(pairs.length === 0){

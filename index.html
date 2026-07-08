@@ -842,14 +842,22 @@ function applyBrand(){
   }catch(e){}
 }
 
-window.addEventListener('load',function(){
+window.addEventListener('load',async function(){
   applyBrand();
   try{
     const u=sessionStorage.getItem('kero_u');
     // Expiración de sesión: si pasaron más de sessionMaxHours, obligar re-login
     const loginAt=parseInt(sessionStorage.getItem('kero_login_at')||'0',10);
     const expirada=loginAt&&(Date.now()-loginAt)>CONFIG.sessionMaxHours*3600*1000;
-    if(u&&USERS[u]&&!currentUser&&!expirada){
+    // Con Auth activo, exigir una sesión de Supabase válida; si no, ir al login
+    let sessionOk=true;
+    if(CONFIG.requireSupabaseAuth&&_sbClient){
+      try{ const {data}=await _sbClient.auth.getSession(); sessionOk=!!(data&&data.session); }catch(e){ sessionOk=false; }
+    }
+    if(u&&USERS[u]&&!currentUser&&!expirada&&!sessionOk){
+      // Estaba "logueado" en el panel pero sin sesión de Supabase → forzar login real
+      try{ sessionStorage.removeItem('kero_u'); sessionStorage.removeItem('kero_login_at'); }catch(e2){}
+    } else if(u&&USERS[u]&&!currentUser&&!expirada&&sessionOk){
       const rec=USERS[u];
       currentUser={username:u,role:rec.role,display:rec.display};
       document.getElementById('login-screen').style.display='none';
@@ -1083,13 +1091,18 @@ async function supaCount(path){
   }catch(e){return 0;}
 }
 
+// Devuelve el token a usar: con Auth activo, el de la sesión del usuario; si no, la anon key
+async function _authBearer(){
+  if(CONFIG.requireSupabaseAuth&&_sbClient){
+    try{ const {data}=await _sbClient.auth.getSession(); if(data?.session?.access_token) return data.session.access_token; }catch(e){}
+  }
+  return SK;
+}
+
 async function supa(path,opts={}){
   try{
     // Con Auth activado usamos el token de la sesión (no la anon key) → sin login no se lee nada
-    let bearer=SK;
-    if(CONFIG.requireSupabaseAuth&&_sbClient){
-      try{ const {data}=await _sbClient.auth.getSession(); if(data?.session?.access_token) bearer=data.session.access_token; }catch(e){}
-    }
+    const bearer=await _authBearer();
     const res=await fetch(SB+'/rest/v1/'+path,{
       headers:{'apikey':SK,'Authorization':'Bearer '+bearer,'Content-Type':'application/json','Prefer':opts.prefer||'return=representation',...(opts.headers||{})},
       method:opts.method||'GET',body:opts.body?JSON.stringify(opts.body):undefined
@@ -1160,7 +1173,7 @@ async function checkSystemStatus(){
   (async()=>{
     try{
       const r=await fetch(SB+'/rest/v1/contacts?select=id&limit=1',{
-        headers:{apikey:SK,Authorization:'Bearer '+SK},
+        headers:{apikey:SK,Authorization:'Bearer '+(await _authBearer())},
         signal:_sysSignal(9000)
       });
       if(r.ok) _sysSet('sb','ok','Activa','Base de datos respondiendo');

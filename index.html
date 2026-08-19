@@ -642,12 +642,12 @@ const CONFIG = {
   supabaseUrl:     'https://hvvigvhiizuzxxkagdmr.supabase.co',
   supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh2dmlndmhpaXp1enh4a2FnZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4MzE2MTQsImV4cCI6MjA5MTQwNzYxNH0.8SDsHZO4smgw5hghXiLbxrGY3TlzaJErjM_VnM15OHs',
   // ── Evolution API (WhatsApp) ──
-  evolutionUrl:      'https://23.95.188.45.sslip.io',
+  evolutionUrl:      'https://107.174.235.73.sslip.io',
   evolutionKey:      'argenbet2024secretkey',
   evolutionInstance: 'argenbet-bot',
   botInstancePrefix: 'ganamos-bot-',   // prefijo de las líneas de campaña en Evolution
   // ── Salud de n8n ──
-  n8nHealthUrl: 'https://23.95.188.45.sslip.io/n8n-health/healthz',
+  n8nHealthUrl: 'https://107.174.235.73.sslip.io/n8n-health/healthz',
   // ── Seguridad ──
   // Poné true SOLO después de aplicar seguridad_rls.sql y crear los usuarios de
   // Supabase Auth. Con true, cada request usa el token de sesión (no la anon key)
@@ -2259,8 +2259,8 @@ async function clearDevice(){
 
 // ── EVOLUTION PROXY (vía n8n, expuesto por Caddy HTTPS) ──
 // Esta URL apunta a /n8n-proxy en Caddy → reverse_proxy a localhost:5678 (n8n)
-// Si todavía no configuraste Caddy, usar http://23.95.188.45:5678/webhook/evo-proxy
-const EVO_PROXY_URL = 'https://23.95.188.45.sslip.io/n8n-proxy/webhook/evo-proxy';
+// Si todavía no configuraste Caddy, usar http://107.174.235.73:5678/webhook/evo-proxy
+const EVO_PROXY_URL = 'https://107.174.235.73.sslip.io/n8n-proxy/webhook/evo-proxy';
 
 async function evoCall(action, instance){
   try {

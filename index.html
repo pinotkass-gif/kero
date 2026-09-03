@@ -1554,7 +1554,17 @@ function _msgHTML(m){
   const byClass={teresa:'teresa',human:'human'}[m.sent_by]||'';
   const t=m.timestamp?new Date(m.timestamp).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'';
   const idAttr=m.id?` data-mid="${m.id}"`:'';
-  return`<div class="msg ${dir}"${idAttr}>${esc(m.body||'')}<div class="msg-meta"><span class="sent-by ${byClass}">${esc(byLabel)}</span>${t?' · '+t:''}</div></div>`;
+  // Si el mensaje trae una imagen (comprobante) embebida como data-URI, la mostramos.
+  const body=m.body||'';
+  let bodyHTML;
+  const im=body.match(/data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+/);
+  if(im){
+    const cap=body.slice(0,im.index).replace(/\s*-\s*$/,'').trim();
+    bodyHTML=(cap?esc(cap)+'<br>':'')+'<img src="'+im[0]+'" alt="comprobante" loading="lazy" style="max-width:230px;max-height:320px;border-radius:8px;margin-top:4px;display:block;cursor:zoom-in" onclick="window.open(this.src,\'_blank\')">';
+  } else {
+    bodyHTML=esc(body);
+  }
+  return`<div class="msg ${dir}"${idAttr}>${bodyHTML}<div class="msg-meta"><span class="sent-by ${byClass}">${esc(byLabel)}</span>${t?' · '+t:''}</div></div>`;
 }
 
 // Render incremental: agrega UN mensaje nuevo al DOM (llamado por realtime o send optimista)
@@ -2010,17 +2020,17 @@ async function renderCampaign(){
 
     // Celda de warming: fueguito de color + contador de días + aviso de lista.
     // El color del fuego se logra con hue-rotate sobre el emoji 🔥 (naranja nativo):
-    //   rojo (arranca) → amarillo (a la mitad) → verde (lista a los 14 días)
+    //   rojo (arranca) → amarillo (a la mitad) → verde (lista a los 10 días)
     let warmCell = '<span style="color:var(--text3)">—</span>';
     if(l.status === 'warming'){
       const d = (l.warming_days != null) ? l.warming_days : 0;
       let flameFilter, txtColor, label, tip;
-      if(d >= 14){
+      if(d >= 10){
         flameFilter='hue-rotate(95deg) saturate(1.6)'; txtColor='var(--green)';  label=`${d}d ✅`; tip='Lista para empezar a mandar a fríos de a poco';
-      } else if(d >= 10){
-        flameFilter='hue-rotate(28deg) saturate(1.4)'; txtColor='var(--amber)';  label=`${d}/14`;  tip=`Casi lista — faltan ${14-d} días`;
+      } else if(d >= 7){
+        flameFilter='hue-rotate(28deg) saturate(1.4)'; txtColor='var(--amber)';  label=`${d}/10`;  tip=`Casi lista — faltan ${10-d} días`;
       } else {
-        flameFilter='hue-rotate(-22deg) saturate(1.5)'; txtColor='#f87171';      label=`${d}/14`;  tip='Recién empieza a calentar';
+        flameFilter='hue-rotate(-22deg) saturate(1.5)'; txtColor='#f87171';      label=`${d}/10`;  tip='Recién empieza a calentar';
       }
       // Contador de mensajes de warming enviados HOY (cross-talk automático)
       const wSent = l.warming_sent_today || 0;
@@ -2147,7 +2157,7 @@ async function setLineStatus(lineId, newStatus){
 
 // Poner una línea en WARMING y arrancar su contador de días desde hoy.
 async function setWarming(lineId){
-  if(!confirm('¿Poner esta línea en WARMING?\n\nArranca el contador de días desde hoy y entra al cross-talk de calentamiento. A los 14 días te avisa que está lista para empezar a mandar a fríos de a poco.')) return;
+  if(!confirm('¿Poner esta línea en WARMING?\n\nArranca el contador de días desde hoy y entra al cross-talk de calentamiento. A los 10 días te avisa que está lista para empezar a mandar a fríos de a poco.')) return;
   const today = new Date().toISOString().slice(0,10);
   const res = await supa('wa_lines?id=eq.'+lineId, {
     method: 'PATCH',

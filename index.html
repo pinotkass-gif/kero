@@ -1548,6 +1548,24 @@ function renderChatPanel(conv){
 
 let _lastMsgSig=null;
 
+// Visor de imagen (lightbox). Necesario porque los navegadores bloquean abrir
+// data-URIs en pestaña nueva (daban about:blank). Muestra la foto sobre la página.
+function showImgLightbox(src){
+  let ov=document.getElementById('img-lightbox');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='img-lightbox';
+    ov.style.cssText='position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,0.9);display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out';
+    ov.innerHTML='<img id="img-lightbox-pic" style="max-width:95vw;max-height:92vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6)"><button id="img-lightbox-x" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.12);color:#fff;border:none;font-size:26px;line-height:1;width:44px;height:44px;border-radius:50%;cursor:pointer">&times;</button>';
+    document.body.appendChild(ov);
+    const close=()=>{ov.style.display='none';};
+    ov.addEventListener('click',close);
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+  }
+  document.getElementById('img-lightbox-pic').src=src;
+  ov.style.display='flex';
+}
+
 function _msgHTML(m){
   const dir=m.direction==='out'?'out':'in';
   const byLabel={teresa:BRAND.botName,user:'Cliente',human:currentUser?.display||'Agente',system:'Sistema'}[m.sent_by]||m.sent_by||'';
@@ -1560,7 +1578,7 @@ function _msgHTML(m){
   const im=body.match(/data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+/);
   if(im){
     const cap=body.slice(0,im.index).replace(/\s*-\s*$/,'').trim();
-    bodyHTML=(cap?esc(cap)+'<br>':'')+'<img src="'+im[0]+'" alt="comprobante" loading="lazy" style="max-width:230px;max-height:320px;border-radius:8px;margin-top:4px;display:block;cursor:zoom-in" onclick="window.open(this.src,\'_blank\')">';
+    bodyHTML=(cap?esc(cap)+'<br>':'')+'<img src="'+im[0]+'" alt="comprobante" loading="lazy" style="max-width:230px;max-height:320px;border-radius:8px;margin-top:4px;display:block;cursor:zoom-in" onclick="showImgLightbox(this.src)">';
   } else {
     bodyHTML=esc(body);
   }
